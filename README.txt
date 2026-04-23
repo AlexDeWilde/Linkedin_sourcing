@@ -3,8 +3,13 @@ LINKEDIN SOURCING PIPELINE
 
 DOCUMENTATION GUIDELINES
 ------------------------
-This README is the single source of truth for the pipeline. Claude must update
-it at the end of every chat session that changes any of the following:
+This README is the agent technical reference for the pipeline. User-facing
+operational content (setup steps, git workflow, troubleshooting, rollback
+procedures, daily workflow) lives in USER_GUIDE.md — do NOT duplicate it here;
+add a "see USER_GUIDE.md" pointer instead.
+
+Claude must update this file at the end of every chat session that changes any
+of the following:
   - A stage script (what it does, inputs, outputs, key flags)
   - A folder added, renamed, or removed
   - The Excel database schema (columns added or changed)
@@ -42,11 +47,9 @@ Run individual .bat files to execute a single stage.
 
 DEPENDENCIES
 ------------
-Python packages (install once):
-    pip install playwright html2text requests openpyxl
-
-Playwright browser (install once):
-    playwright install chrome
+Python packages : playwright, html2text, requests, openpyxl, flask
+Playwright      : chrome channel
+Install steps and first-time setup: see USER_GUIDE.md.
 
 OLLAMA CONNECTION  (stages 05 and 06)
 --------------------------------------
@@ -247,7 +250,7 @@ STAGES
            Deletes processed .eml files on completion.
   Filename format: YYYYMMDD_Job_XXXXXXXXXX - Email - LinkedIn.url  (placeholder)
            Stage 04 renames these using the live page title and company.
-  How to get .eml: open email in Gmail browser → three-dot menu → Download message.
+  How to get .eml: see USER_GUIDE.md.
   Duplicates: stage 02 dedup catches any URL already seen from search results.
   Bat options:
     00-parse_email.bat       extraction only (manual pipeline run after)
@@ -346,10 +349,7 @@ STAGES
            [ref_nr]_[score]_[date]_[city]_[title]_[company]_[source]_SCORING.md
            _SCORING.md contains: summary table, additions, deductions, disqualifier
            flags, notes, and full raw JSON — used as input for stage 07.
-  Rollback procedure (to reprocess listings):
-           1. Move files from 06-LLM_scored/ back to 05-LLMfiltered/
-           2. Delete the corresponding rows from 06-listings_db.xlsx
-           3. Re-run stage 06 — ref_nr resumes from last Excel row automatically
+  Rollback procedure (to reprocess listings): see USER_GUIDE.md.
   Notes  : Requires Ollama on Legion with gemma4:26b loaded.
            See CRITICAL STREAMING FLAGS above.
 

@@ -62,4 +62,12 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ---
 
+## Project documentation ownership
+
+- `README.txt` is the agent technical reference. Update it per its own DOCUMENTATION GUIDELINES section whenever a stage, folder, schema, or config file changes.
+- `USER_GUIDE.md` is user-only operational manual. Do NOT read or update it unless the user explicitly asks.
+- When information fits both files, put it in README and add a short pointer in USER_GUIDE — never duplicate.
+
+---
+
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
