@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/Alexandre/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/531383ff-2ea7-421a-8ef7-5800d5c7db4d/c81280f0-aa29-4122-a2de-a4289b6375d9/skills/xlsx/**)",
+      "Bash(python -)",
+      "Bash(sed -n '240,255p' \"D:/_Claude_projects/LinkedIn_sourcing/04-enrich.py\")",
+      "Bash(sed -n '208,220p' \"D:/_Claude_projects/LinkedIn_sourcing/01-extract.py\")",
+      "Bash(sed -n '242,250p' \"D:/_Claude_projects/LinkedIn_sourcing/01-extract.py\")",
+      "Bash(pandoc --version)",
+      "Bash(grep \"\\\\.md$\")"
+    ]
+  }
+}

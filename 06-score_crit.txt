@@ -1,0 +1,257 @@
+# JOB LISTING SCORING CRITERIA
+# Stage 06 — LLM Scoring
+#
+# This file is the single source of truth for all scoring rules.
+# Edit values here directly — changes take effect on the next run automatically.
+# Lines starting with # are comments and are ignored by the script.
+#
+# SCORING LOGIC:
+#   - Every listing starts at a Fit Score of 100.
+#   - Apply all additions first, then all deductions.
+#   - Minimum score is 0. There is no ceiling — scores above 100 are valid.
+#   - All listings are scored and added to the database regardless of score.
+#   - The LLM must return a score breakdown listing every criterion applied.
+
+
+# ============================================================
+# CRITERION 1 — TARGET ROLES
+# ============================================================
+# Evaluate the job title of the listing against the tiers below.
+# If the title does not match any tier, treat as out of scope: deduct 50 points.
+
+PREFERRED TITLES — no deduction:
+  - CFO / Chief Financial Officer
+  - Finance Director / Director of Finance
+  - VP of Finance / VP Finance / Finance VP
+  - Group CFO / Group Finance Director
+  - Combinations of the above with Legal, HR, IT, or Operations components
+    (e.g. CFOO, Head of Finance and Operations, Director of Finance and Legal)
+
+ACCEPTABLE TITLES — no deduction:
+  - Head of Finance
+  - Any "Group" variant of an acceptable title not already listed above
+
+DISCOUNTED TITLES — deduct 10 points each:
+  - Chief of Staff (standalone, no finance component in the title)
+  - Fractional CFO / Fractional Finance roles
+
+OUT OF SCOPE — deduct 50 points:
+  - Any title that does not match any of the above tiers
+
+
+# ============================================================
+# CRITERION 2 — LOCATIONS
+# ============================================================
+# The priority order below is INFORMATIONAL ONLY — it does not affect scoring.
+# Use it to populate the city field in the output. Scoring rules follow.
+
+PRIORITY ORDER (informational):
+  1. Flanders, Belgium
+  2. Randstad, Netherlands
+  3. Munich area — within 50km of city centre
+  4. Remote — EU-based
+  5. São Paulo, Brazil — within 80km
+  6. Bragança Paulista, Brazil — within 40km
+  7. Lisbon, Portugal — within 40km
+  8. Barcelona, Spain — within 40km
+  9. Copenhagen, Denmark — within 40km
+  10. Oslo, Norway — within 40km
+  11. Local — within 40km of Tettnang, Baden-Württemberg, Germany
+
+SCORING RULES:
+
+  Remote (EU-based): no deduction
+
+  Listed locations (all entries in the priority list above): no deduction
+
+  Berlin, Germany: deduct 30 points
+
+  Rio de Janeiro city — within 20km of city centre: deduct 15 points
+  Rio de Janeiro state — outside 20km of city centre: HARD DISQUALIFIER
+    (note in output: "Location disqualifier: Rio de Janeiro state outside 20km")
+
+  Any Brazilian location not listed above (not São Paulo within 80km,
+  not Bragança Paulista within 40km): HARD DISQUALIFIER
+    (note in output: "Location disqualifier: Brazilian location outside accepted areas")
+
+  Any other location not appearing in the priority list above: deduct 20 points
+
+# Note on HARD DISQUALIFIERS:
+# A hard disqualifier does not auto-reject the listing.
+# Score the listing normally, apply the disqualifier note to the output,
+# and let the fit_score reflect all other criteria. The disqualifier flag
+# is for the user's awareness only.
+
+
+# ============================================================
+# CRITERION 3 — INDUSTRIES
+# ============================================================
+# Evaluate the industry or sector of the company behind the listing.
+# Apply the first matching rule. If no match, treat as neutral.
+
+PREFERRED INDUSTRIES — add 10 points ONCE in total, even if the company matches multiple preferred industries. Do not add 10 per industry — the maximum bonus from this section is +10.
+IMPORTANT: the bonus applies only when the listed industry IS THE PRIMARY BUSINESS of the hiring company. A passing mention of a term like "digital transformation" or "automation" in a job description does NOT qualify. Ask: what does this company actually sell or do as its core business?
+  - Deeptech
+  - SaaS
+  - Robotics
+  - Aerospace
+  - Automation
+  - Digital transformation
+  - Power generation technologies
+  - Pharma research
+  - Biotech
+  - Healthtech
+  - Fintech
+  - IoT (Internet of Things)
+  - Venture capital
+  - Private equity
+
+ACCEPTABLE INDUSTRIES — neutral, no deduction:
+  - Industrial manufacturing
+  - Any industry not listed elsewhere in this section
+
+DISLIKES — deduct 10 points each (apply all that match):
+  - Climate / sustainability focus (as the company's primary mission)
+  - E-commerce
+  - Quantum computing
+  - Cryptocurrency / crypto-related (blockchain, Web3, token-based businesses)
+
+
+# ============================================================
+# CRITERION 4 — COMPANY PROFILE
+# ============================================================
+# Only apply deductions when clearly determinable from the job description.
+# Do not guess or infer beyond what the text states.
+
+CULTURE — deduct 15 points if:
+  The role's subject matter is explicitly centred on social impact,
+  women-focused initiatives, LGBTQ programmes, DEI roles, or similar.
+  Do NOT deduct for generic compliance boilerplate or passing mentions
+  of diversity in company values — only deduct when it is the core
+  purpose of the role itself.
+
+RECRUITING AGENCY — deduct 10 points if:
+  The listing is clearly posted by a recruiting agency or headhunter
+  acting on behalf of a client company, rather than the hiring company
+  posting directly. Indicators include phrases like "on behalf of our
+  client", "our client is looking for", or a known agency/staffing firm
+  name in the poster field. If uncertain, do not deduct.
+
+
+# ============================================================
+# CRITERION 5 — LANGUAGE REQUIREMENTS
+# ============================================================
+# Evaluate language requirements explicitly stated in the job listing.
+# If no language requirement is stated: NO deduction.
+# If a language is listed only as "advantage", "desirable", "a plus",
+# "preferred", "asset", or any other optional framing: NO deduction.
+# Apply deductions per language — multiple languages can each trigger a deduction.
+
+# --- FULLY EXEMPT LANGUAGES (NO deduction under any circumstances) ---
+
+ENGLISH — NO deduction at any level, ever.
+
+PORTUGUESE — NO deduction at any level, ever.
+  This applies regardless of how it is phrased: "fluent Portuguese required",
+  "native Portuguese", "professional proficiency in Portuguese", C1/C2 Portuguese,
+  or any other wording. Do NOT deduct for Portuguese under any circumstances.
+
+SPANISH — NO deduction at any level, ever.
+  This applies regardless of how it is phrased: "fluent Spanish required",
+  "native Spanish", "professional proficiency in Spanish", C1/C2 Spanish,
+  "advanced Spanish", or any other wording. Do NOT deduct for Spanish under any circumstances.
+
+# --- LANGUAGES WITH LEVEL-DEPENDENT DEDUCTIONS ---
+
+GERMAN:
+  - A1, A2, B1 (basic or intermediate): NO deduction
+  - B2 (upper intermediate): deduct 30 points
+  - C1, C2, fluent, native, mother tongue, full professional proficiency, or equivalent: deduct 50 points
+
+DUTCH:
+  - A1, A2, B1 (basic or intermediate): NO deduction
+  - B2 (upper intermediate): deduct 30 points
+  - C1, C2, fluent, native, mother tongue, full professional proficiency, or equivalent: deduct 50 points
+
+FRENCH:
+  - A1, A2 (basic): NO deduction
+  - B1, B2 (intermediate or upper intermediate): deduct 30 points
+  - C1, C2, fluent, native, mother tongue, full professional proficiency, or equivalent: deduct 50 points
+
+# --- ALL OTHER LANGUAGES ---
+# Any language that is NOT English, Portuguese, Spanish, German, Dutch, or French:
+
+  - A1, A2 (basic): deduct 15 points
+  - B1, B2 (intermediate or upper intermediate): deduct 30 points
+  - C1, C2, fluent, native, mother tongue, full professional proficiency, or equivalent: deduct 50 points
+
+
+# ============================================================
+# CRITERION 6 — CORE COMPETENCIES
+# ============================================================
+# You MUST evaluate ALL competencies in both lists below for every listing.
+# Do not skip this section. For each competency, make an explicit decision.
+# Deduct 1 point if the competency is clearly absent or irrelevant to the role.
+# Do not deduct for competencies that are simply not mentioned but could
+# plausibly be part of the role — only deduct if the role clearly excludes them.
+# Example: "Tech startup fundraising" is clearly absent for a role at a
+# 10,000-person FMCG multinational. It is NOT clearly absent for a CFO at a
+# scale-up even if not explicitly mentioned.
+
+CURRENT AND STRONGEST COMPETENCIES:
+  - Finance strategy
+  - M&A advisory
+  - Financial management
+  - Financial and accounting reporting
+  - Stakeholder management and reporting
+  - PE/VC funded company experience
+  - International business
+  - HR oversight
+  - Legal oversight
+  - IT systems and cloud infrastructure oversight
+  - Digital transformation
+  - Sparring partner to CEOs and founders
+  - Certification programme implementations
+
+COMPETENCIES TO USE AND DEVELOP (same scoring rule — deduct 1 if clearly absent):
+  - Tech startup fundraising
+  - AI process transformation
+  - AI-native company transformation
+
+
+# ============================================================
+# CRITERION 7 — SCORING SUMMARY RULES
+# ============================================================
+# These rules govern how the LLM must produce and report the score.
+
+STARTING SCORE: 100
+
+ORDER OF OPERATIONS:
+  1. Apply all additions (Criterion 3 industry bonus)
+  2. Apply all deductions from all criteria
+  3. Floor score at 0 — never return a negative number
+  4. No ceiling — scores above 100 are valid
+
+OUTPUT REQUIREMENTS:
+  The LLM must return a structured JSON object with the following fields.
+  DO NOT calculate or include a total score — Python calculates it from your breakdown.
+  Your only job is to identify which criteria apply and list them accurately.
+
+    - company_name    : the name of the RECRUITER or agency if the listing is posted
+                        by one (e.g. "SRM Recruitment", "Michael Page"). If the company
+                        is posting directly, use the company name.
+    - client_company  : if posted by a recruiter/agency AND the actual hiring company
+                        is named in the listing, put that company name here. Otherwise
+                        leave as empty string "".
+    - city_code       : 7-character city code (or fewer if city name is short),
+                        uppercase, no spaces, first 7 letters of city name.
+                        Use REMOTE for remote roles.
+                        Examples: AMSTERD, MUNICH, BARCELO, SAOPAU, BRAGPAU, REMOTE
+    - date_published  : date the listing was published (YYYYMMDD format).
+                        If unavailable, use date found or date added.
+    - job_title       : exact job title as stated in the listing
+    - source          : platform where the listing was found (e.g. LinkedIn)
+    - additions       : list of additions applied, each with criterion, detail, points
+    - deductions      : list of deductions applied, each with criterion, detail, points
+    - disqualifiers   : list of any hard disqualifier flags (location or other), or empty list
+    - notes           : any additional observations relevant to the listing or scoring

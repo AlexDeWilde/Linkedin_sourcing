@@ -1,0 +1,23 @@
+# MUN
+https://www.linkedin.com/jobs/search/?currentJobId=&f_TPR=r431800&geoId=90009735&keywords=(%22CFO%22%20OR%20%22Chief%20Financial%20Officer%22%20OR%20((%22Finance%22%20OR%20%22Financial%22%20OR%20%22Financiero%22)%20AND%20(%22Director%22%20OR%20%22Head%22)))&origin=JOB_SEARCH_PAGE_LOCATION_AUTOCOMPLETE&refresh=true&sortBy=DD
+# DE
+https://www.linkedin.com/jobs/search/?currentJobId=&f_TPR=r431800&geoId=101282230&keywords=(%22CFO%22%20OR%20%22Chief%20Financial%20Officer%22%20OR%20((%22Finance%22%20OR%20%22Financial%22%20OR%20%22Financiero%22)%20AND%20(%22Director%22%20OR%20%22Head%22)))&origin=JOB_SEARCH_PAGE_SEARCH_BUTTON&refresh=true&sortBy=DD
+# NE
+https://www.linkedin.com/jobs/search/?currentJobId=&f_TPR=r431800&geoId=102890719&keywords=(%22CFO%22%20OR%20%22Chief%20Financial%20Officer%22%20OR%20((%22Finance%22%20OR%20%22Financial%22%20OR%20%22Financiero%22)%20AND%20(%22Director%22%20OR%20%22Head%22)))&origin=JOB_SEARCH_PAGE_SEARCH_BUTTON&refresh=true&sortBy=DD
+# BE
+https://www.linkedin.com/jobs/search/?currentJobId=&f_TPR=r431800&geoId=100565514&keywords=(%22CFO%22%20OR%20%22Chief%20Financial%20Officer%22%20OR%20((%22Finance%22%20OR%20%22Financial%22%20OR%20%22Financiero%22)%20AND%20(%22Director%22%20OR%20%22Head%22)))&origin=JOB_SEARCH_PAGE_SEARCH_BUTTON&refresh=true&sortBy=DD
+# DK
+https://www.linkedin.com/jobs/search/?currentJobId=&f_TPR=r431800&geoId=104514075&keywords=(%22CFO%22%20OR%20%22Chief%20Financial%20Officer%22%20OR%20((%22Finance%22%20OR%20%22Financial%22%20OR%20%22Financiero%22)%20AND%20(%22Director%22%20OR%20%22Head%22)))&origin=JOB_SEARCH_PAGE_LOCATION_AUTOCOMPLETE&refresh=true&sortBy=DD
+# BR
+https://www.linkedin.com/jobs/search/?currentJobId=&f_TPR=r431800&geoId=106057199&keywords=(%22CFO%22%20OR%20%22Chief%20Financial%20Officer%22%20OR%20((%22Finance%22%20OR%20%22Finan%C3%A7as%22%20OR%20%22Financeiro%22)%20AND%20(%22Director%22%20OR%20%22Diretor%22%20OR%20%22Head%22)))&origin=JOB_SEARCH_PAGE_SEARCH_BUTTON&refresh=true&sortBy=DD
+# POR
+https://www.linkedin.com/jobs/search/?currentJobId=4389292040&f_TPR=r404800&geoId=100364837&keywords=(%22CFO%22%20OR%20%22Chief%20Financial%20Officer%22%20OR%20((%22Finance%22%20OR%20%22Finan%C3%A7as%22%20OR%20%22Financeiro%22)%20AND%20(%22Director%22%20OR%20%22Diretor%22%20OR%20%22Head%22)))&origin=JOB_SEARCH_PAGE_JOB_FILTER&refresh=true
+# BARC
+https://www.linkedin.com/jobs/search/?currentJobId=4389292040&f_TPR=r404800&geoId=90009761&keywords=(%22CFO%22%20OR%20%22Chief%20Financial%20Officer%22%20OR%20((%22Finance%22%20OR%20%22Financial%22%20OR%20%22Financiero%22)%20AND%20(%22Director%22%20OR%20%22Head%22)))&origin=JOB_SEARCH_PAGE_JOB_FILTER&refresh=true
+# EU Latam
+https://www.linkedin.com/jobs/search/?currentJobId=4401064615&f_TPR=r431800&geoId=91000000&keywords=(%22LatAm%22%20OR%20%22Latin%20America%22)%20AND%20(((%22Finance%22%20OR%20%22Financial%22%20OR%20%22Financiero%22)%20AND%20(%22Director%22%20OR%20%22Head%22)))&origin=JOB_SEARCH_PAGE_SEARCH_BUTTON&refresh=true&sortBy=DD
+#EU REM
+https://www.linkedin.com/jobs/search/?currentJobId=4402976364&f_TPR=r431800&f_WT=2&geoId=91000000&keywords=(%22CFO%22%20OR%20%22Chief%20Financial%20Officer%22%20OR%20((%22Finance%22%20OR%20%22Financial%22%20OR%20%22Financiero%22)%20AND%20(%22Director%22%20OR%20%22Head%22)))&origin=JOB_SEARCH_PAGE_JOB_FILTER&refresh=true&sortBy=DD
+
+
+

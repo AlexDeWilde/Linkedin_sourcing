@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Job Finding Command Center</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #eef0f5;
+  height: 100vh;
+  overflow: hidden;
+  color: #1a1a2e;
+}
+
+/* ── TOP BAR ── */
+#topbar {
+  height: 52px;
+  background: #1a1a2e;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 16px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 200;
+}
+
+#topbar-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: white;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+#topbar-stats {
+  flex: 1;
+  display: flex;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.stat-chip {
+  background: rgba(255,255,255,0.1);
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.75);
+  white-space: nowrap;
+  border-left: 3px solid transparent;
+}
+
+#btn-refresh, #btn-sync {
+  background: rgba(255,255,255,0.12);
+  border: none;
+  color: rgba(255,255,255,0.85);
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+#btn-refresh:hover, #btn-sync:hover { background: rgba(255,255,255,0.22); }
+#btn-sync.syncing { opacity: 0.6; cursor: default; }
+
+/* ── BOARD ── */
+#board {
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+  height: calc(100vh - 52px);
+  overflow-x: auto;
+  overflow-y: hidden;
+  align-items: flex-start;
+  transition: padding-right 0.3s ease;
+}
+#board.panel-open { padding-right: 632px; }
+
+/* ── COLUMN ── */
+.column {
+  flex-shrink: 0;
+  width: 215px;
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+  border-radius: 10px;
+  background: #dde0e8;
+  overflow: hidden;
+}
+
+.col-header {
+  padding: 11px 13px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.col-count {
+  background: rgba(255,255,255,0.28);
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.cards-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 7px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-height: 60px;
+}
+
+.cards-list::-webkit-scrollbar { width: 3px; }
+.cards-list::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 2px; }
+
+.empty-placeholder {
+  text-align: center;
+  color: #b0b4be;
+  font-size: 11px;
+  padding: 18px 0;
+  pointer-events: none;
+  user-select: none;
+}
+
+.sort-bar {
+  padding: 5px 8px;
+  background: rgba(0,0,0,0.07);
+  flex-shrink: 0;
+}
+
+.sort-bar select {
+  width: 100%;
+  font-size: 11px;
+  border: none;
+  background: transparent;
+  color: #444;
+  cursor: pointer;
+  outline: none;
+  padding: 1px 0;
+}
+
+/* ── CARD ── */
+.card {
+  background: white;
+  border-radius: 7px;
+  padding: 10px 11px;
+  cursor: pointer;
+  border-left: 4px solid #9e9e9e;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+  transition: box-shadow 0.15s;
+  user-select: none;
+}
+
+.card:hover { box-shadow: 0 3px 10px rgba(0,0,0,0.13); }
+
+.card.selected {
+  box-shadow: 0 0 0 2px #1565c0, 0 3px 10px rgba(0,0,0,0.15);
+}
+
+.card.sortable-ghost { opacity: 0.35; }
+
+.card.sortable-drag {
+  box-shadow: 0 8px 28px rgba(0,0,0,0.22);
+  transform: rotate(1.2deg);
+}
+
+.card-top {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 5px;
+}
+
+.score-badge {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: white;
+  flex-shrink: 0;
+  letter-spacing: 0.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.card-company {
+  font-size: 11px;
+  font-weight: 600;
+  color: #555;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #1a1a2e;
+  line-height: 1.35;
+  margin-bottom: 5px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.card-meta {
+  font-size: 11px;
+  color: #999;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.comment-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fb8c00;
+  flex-shrink: 0;
+  margin-left: 2px;
+}
+
+/* ── PANEL ── */
+#panel {
+  position: fixed;
+  right: 0;
+  top: 52px;
+  bottom: 0;
+  width: 618px;
+  background: white;
+  box-shadow: -4px 0 28px rgba(0,0,0,0.13);
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  z-index: 150;
+  overflow: hidden;
+}
+#panel.open { transform: translateX(0); }
+
+/* panel header */
+#panel-header {
+  padding: 14px 15px;
+  border-bottom: 1px solid #eee;
+  flex-shrink: 0;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: #fafafa;
+}
+
+#panel-score-large {
+  font-size: 20px;
+  font-weight: 900;
+  padding: 7px 10px;
+  border-radius: 7px;
+  color: white;
+  flex-shrink: 0;
+  min-width: 54px;
+  text-align: center;
+  letter-spacing: 0.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+#panel-meta { flex: 1; min-width: 0; }
+
+#panel-job-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #1a1a2e;
+  line-height: 1.3;
+  margin-bottom: 3px;
+}
+
+#panel-company-name {
+  font-size: 12px;
+  color: #555;
+  margin-bottom: 2px;
+  font-weight: 500;
+}
+
+#panel-loc-date {
+  font-size: 11px;
+  color: #999;
+}
+
+#panel-linkedin-link {
+  margin-top: 5px;
+}
+#panel-linkedin-link a {
+  font-size: 11px;
+  font-weight: 700;
+  color: #0a66c2;
+  text-decoration: none;
+  letter-spacing: 0.5px;
+}
+#panel-linkedin-link a:hover { text-decoration: underline; }
+
+#btn-panel-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  color: #bbb;
+  padding: 3px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+#btn-panel-close:hover { color: #555; background: #f0f0f0; }
+
+/* panel actions */
+#panel-actions {
+  padding: 9px 15px;
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid #eee;
+  flex-shrink: 0;
+}
+
+.action-btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: opacity 0.15s, filter 0.15s;
+  white-space: nowrap;
+}
+.action-btn:hover { filter: brightness(0.92); }
+
+.btn-next     { background: #1565c0; color: white; }
+.btn-prev     { background: #e8e8e8; color: #444; }
+.btn-applied  { background: #2e7d32; color: white; }
+.btn-nav      { background: #f0f0f0; color: #555; padding: 6px 10px; }
+
+/* reject bar — reason buttons */
+#panel-reject-bar {
+  padding: 6px 15px 9px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  background: #fdf6f6;
+  flex-shrink: 0;
+}
+#panel-reject-bar.hidden { display: none; }
+
+.reject-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: #c62828;
+  margin-right: 4px;
+}
+
+.reject-reason-btn {
+  background: #ffebee;
+  color: #c62828;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.reject-reason-btn:hover { background: #ffcdd2; }
+.reject-reason-btn.reject-other {
+  background: #fff3e0;
+  color: #e65100;
+}
+.reject-reason-btn.reject-other:hover { background: #ffe0b2; }
+
+/* comment section (inside Notes tab) */
+#panel-comment-section {
+  padding: 15px;
+}
+
+#panel-comment-section label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: #aaa;
+  display: block;
+  margin-bottom: 6px;
+}
+
+#panel-comment {
+  width: 100%;
+  min-height: 66px;
+  max-height: 130px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 7px 9px;
+  font-size: 12.5px;
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.2s;
+  color: #333;
+  line-height: 1.5;
+}
+#panel-comment:focus { border-color: #1565c0; }
+
+#comment-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+#btn-save-comment {
+  background: #1565c0;
+  color: white;
+  border: none;
+  padding: 5px 14px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+#btn-save-comment:hover { background: #1976d2; }
+
+#btn-edit-score {
+  background: #f3e5f5;
+  color: #6a1b9a;
+  border: none;
+  padding: 5px 14px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+#btn-edit-score:hover { background: #e1bee7; }
+
+#comment-status { font-size: 11px; color: #aaa; }
+
+/* tabs */
+#panel-tabs {
+  display: flex;
+  border-bottom: 1px solid #eee;
+  flex-shrink: 0;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 9px 0;
+  border: none;
+  background: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: #aaa;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+.tab-btn.active    { color: #1565c0; border-bottom-color: #1565c0; }
+.tab-btn:hover:not(.active) { color: #555; }
+
+/* content */
+#panel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 15px;
+}
+#panel-content::-webkit-scrollbar { width: 4px; }
+#panel-content::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 2px; }
+
+.tab-panel          { display: none; }
+.tab-panel.active   { display: block; }
+
+.loading-msg {
+  color: #ccc;
+  font-size: 13px;
+  text-align: center;
+  padding: 24px 0;
+}
+
+/* score editor modal */
+#score-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  z-index: 600;
+  align-items: center;
+  justify-content: center;
+}
+#score-modal-box {
+  background: white;
+  border-radius: 10px;
+  width: 720px;
+  max-width: 92vw;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  gap: 12px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+#score-modal-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+#score-modal-hint {
+  font-size: 11px;
+  color: #aaa;
+  margin-top: -6px;
+}
+#score-editor-content {
+  flex: 1;
+  min-height: 380px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 10px;
+  resize: vertical;
+  outline: none;
+  line-height: 1.5;
+  color: #222;
+}
+#score-editor-content:focus { border-color: #1565c0; }
+#score-modal-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+#btn-save-score {
+  background: #1565c0;
+  color: white;
+  border: none;
+  padding: 7px 18px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+#btn-save-score:hover { background: #1976d2; }
+#btn-save-score:disabled { background: #ccc; cursor: default; }
+#btn-cancel-score {
+  background: #eee;
+  color: #444;
+  border: none;
+  padding: 7px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+#btn-cancel-score:hover { background: #ddd; }
+#score-edit-status { font-size: 11px; color: #888; }
+
+/* rendered markdown */
+.md-body { font-size: 13px; line-height: 1.65; color: #333; }
+.md-body h1 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; color: #1a1a2e; }
+.md-body h2 { font-size: 13.5px; font-weight: 700; margin: 12px 0 5px; color: #1a1a2e; }
+.md-body h3 { font-size: 13px; font-weight: 700; margin: 10px 0 4px; }
+.md-body p  { margin-bottom: 8px; }
+.md-body ul, .md-body ol { margin: 0 0 8px 18px; }
+.md-body li { margin-bottom: 2px; }
+.md-body table { border-collapse: collapse; width: 100%; margin-bottom: 10px; }
+.md-body th, .md-body td { border: 1px solid #e0e0e0; padding: 5px 8px; text-align: left; font-size: 12px; }
+.md-body th { background: #f5f5f5; font-weight: 600; }
+.md-body code { background: #f4f4f4; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+.md-body pre  { background: #f4f4f4; padding: 10px; border-radius: 5px; overflow-x: auto; margin-bottom: 8px; }
+.md-body strong { font-weight: 700; }
+.md-body hr { border: none; border-top: 1px solid #eee; margin: 10px 0; }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div id="topbar-title">Job Finding Command Center</div>
+  <div id="topbar-stats"></div>
+  <button id="btn-sync" onclick="syncDb()">Sync DB</button>
+  <button id="btn-refresh" onclick="loadAll()">Refresh</button>
+</div>
+
+<div id="board"></div>
+
+<div id="panel">
+  <div id="panel-header">
+    <div id="panel-score-large"></div>
+    <div id="panel-meta">
+      <div id="panel-job-title"></div>
+      <div id="panel-company-name"></div>
+      <div id="panel-loc-date"></div>
+      <div id="panel-linkedin-link"></div>
+    </div>
+    <button id="btn-panel-close" onclick="closePanel()">x</button>
+  </div>
+  <div id="panel-actions"></div>
+  <div id="panel-reject-bar" class="hidden">
+    <span class="reject-label">Reject:</span>
+    <button class="reject-reason-btn" data-reason="Location">Location</button>
+    <button class="reject-reason-btn" data-reason="Seniority">Seniority</button>
+    <button class="reject-reason-btn" data-reason="Stack">Stack</button>
+    <button class="reject-reason-btn" data-reason="Company">Company</button>
+    <button class="reject-reason-btn" data-reason="Pay">Pay</button>
+    <button class="reject-reason-btn" data-reason="Role">Role</button>
+    <button class="reject-reason-btn" data-reason="Expired">Expired</button>
+    <button class="reject-reason-btn reject-other" data-reason="__other__">Other&hellip;</button>
+  </div>
+  <div id="panel-tabs">
+    <button class="tab-btn active" onclick="switchTab('scoring')">Scoring</button>
+    <button class="tab-btn" onclick="switchTab('jd')">Job Description</button>
+    <button class="tab-btn" onclick="switchTab('notes')">Notes</button>
+  </div>
+  <div id="panel-content">
+    <div id="tab-scoring" class="tab-panel active"><div class="loading-msg">Select a card to begin.</div></div>
+    <div id="tab-jd"      class="tab-panel"><div class="loading-msg">Select a card to begin.</div></div>
+    <div id="tab-notes"   class="tab-panel">
+      <div id="panel-comment-section">
+        <label>Personal Notes</label>
+        <textarea id="panel-comment" placeholder="Add your notes here..."></textarea>
+        <div id="comment-bar">
+          <button id="btn-save-comment">Save Notes</button>
+          <span id="comment-status"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+<script>
+marked.use({ gfm: true, breaks: false });
+
+// ── Config ──────────────────────────────────────────────────────────────────
+
+const COLUMNS = [
+  { id: 'new',        label: 'New',              color: '#1565c0' },
+  { id: 'consider',   label: 'In Consideration', color: '#2e7d32' },
+  { id: 'priorities', label: 'Priorities',       color: '#e65100' },
+  { id: 'in_process', label: 'In Process',       color: '#6a1b9a' },
+];
+
+function scoreColor(score) {
+  const s = parseInt(score, 10);
+  if (isNaN(s) || s === 0) return '#9e9e9e';
+  if (s < 50)  return '#e53935';
+  if (s < 70)  return '#fb8c00';
+  if (s < 90)  return '#43a047';
+  if (s < 100) return '#1e88e5';
+  return '#8e24aa';
+}
+
+function formatDate(d) {
+  if (!d || d.length !== 8) return d || '';
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${d.slice(6)} ${months[parseInt(d.slice(4,6)) - 1]} ${d.slice(0,4)}`;
+}
+
+function esc(str) {
+  return (str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ── State ───────────────────────────────────────────────────────────────────
+
+let allListings          = {};
+let selectedStem         = null;
+let selectedCol          = null;
+let newColSort           = 'date_desc';
+let currentScoringContent = '';
+
+// ── Data ────────────────────────────────────────────────────────────────────
+
+async function syncDb() {
+  const btn = document.getElementById('btn-sync');
+  btn.textContent = 'Syncing…';
+  btn.classList.add('syncing');
+  btn.disabled = true;
+  try {
+    const resp = await fetch('/api/sync_all', { method: 'POST' });
+    const data = await resp.json();
+    if (data.ok) {
+      btn.textContent = `✓ ${data.updated} updated`;
+    } else {
+      btn.textContent = 'Error';
+      console.error('sync_all error:', data.error);
+    }
+  } catch (e) {
+    btn.textContent = 'Error';
+    console.error(e);
+  } finally {
+    btn.classList.remove('syncing');
+    btn.disabled = false;
+    setTimeout(() => { btn.textContent = 'Sync DB'; }, 3000);
+  }
+}
+
+async function loadAll() {
+  const resp = await fetch('/api/listings');
+  allListings = await resp.json();
+  renderBoard();
+  updateStats();
+
+  if (selectedStem) {
+    const found = findListing(selectedStem);
+    if (found) {
+      selectedCol = found.col;
+      renderPanelHeader(found);
+      renderPanelActions(found);
+      const cardEl = document.querySelector(`.card[data-stem="${CSS.escape(selectedStem)}"]`);
+      if (cardEl) cardEl.classList.add('selected');
+    } else {
+      closePanel();
+    }
+  }
+}
+
+function sortedListings(listings, colId) {
+  const arr = [...listings];
+  switch (newColSort) {
+    case 'date_desc':  return arr.sort((a, b) => (b.published || '').localeCompare(a.published || ''));
+    case 'date_asc':   return arr.sort((a, b) => (a.published || '').localeCompare(b.published || ''));
+    case 'score_desc': return arr.sort((a, b) => parseInt(b.fit_score || 0) - parseInt(a.fit_score || 0));
+    case 'score_asc':  return arr.sort((a, b) => parseInt(a.fit_score || 0) - parseInt(b.fit_score || 0));
+    case 'company':    return arr.sort((a, b) => (a.company || '').localeCompare(b.company || ''));
+    default: return arr;
+  }
+}
+
+function handleSortChange(value) {
+  newColSort = value;
+  for (const colDef of COLUMNS) {
+    const list = document.getElementById(`list-${colDef.id}`);
+    if (!list) continue;
+    list.innerHTML = '';
+    const sorted = sortedListings(allListings[colDef.id] || [], colDef.id);
+    if (sorted.length === 0) {
+      list.innerHTML = '<div class="empty-placeholder">Drop here</div>';
+    } else {
+      for (const l of sorted) list.appendChild(buildCard(l));
+    }
+  }
+}
+
+function findListing(stem) {
+  for (const col of Object.keys(allListings)) {
+    const hit = allListings[col].find(l => l.stem === stem);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+// ── Board ───────────────────────────────────────────────────────────────────
+
+function renderBoard() {
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+  for (const colDef of COLUMNS) {
+    board.appendChild(buildColumn(colDef, allListings[colDef.id] || []));
+  }
+  initSortables();
+}
+
+function buildColumn(colDef, listings) {
+  const wrap = document.createElement('div');
+  wrap.className = 'column';
+  wrap.dataset.col = colDef.id;
+
+  const header = document.createElement('div');
+  header.className = 'col-header';
+  header.style.background = colDef.color;
+  header.innerHTML = `<span>${colDef.label}</span><span class="col-count" id="count-${colDef.id}">${listings.length}</span>`;
+
+  const list = document.createElement('div');
+  list.className = 'cards-list';
+  list.id = `list-${colDef.id}`;
+  list.dataset.col = colDef.id;
+
+  const toRender = sortedListings(listings, colDef.id);
+  if (toRender.length === 0) {
+    list.innerHTML = '<div class="empty-placeholder">Drop here</div>';
+  } else {
+    for (const l of toRender) list.appendChild(buildCard(l));
+  }
+
+  wrap.appendChild(header);
+
+  if (colDef.id === 'new') {
+    const sortBar = document.createElement('div');
+    sortBar.className = 'sort-bar';
+    const sel = document.createElement('select');
+    sel.innerHTML = `
+      <option value="date_desc">Date: newest first</option>
+      <option value="date_asc">Date: oldest first</option>
+      <option value="score_desc">Score: high to low</option>
+      <option value="score_asc">Score: low to high</option>
+      <option value="company">Company A \u2192 Z</option>
+    `;
+    sel.value = newColSort;
+    sel.addEventListener('change', e => handleSortChange(e.target.value));
+    sortBar.appendChild(sel);
+    wrap.appendChild(sortBar);
+  }
+
+  wrap.appendChild(list);
+  return wrap;
+}
+
+function buildCard(listing) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.dataset.stem = listing.stem;
+  card.dataset.col  = listing.col;
+
+  const color = scoreColor(listing.fit_score);
+  card.style.borderLeftColor = color;
+  if (listing.stem === selectedStem) card.classList.add('selected');
+
+  const scoreLabel = String(listing.fit_score || '0').padStart(3, '0');
+  const dot = listing.has_comment
+    ? '<span class="comment-dot" title="Has notes"></span>'
+    : '';
+
+  card.innerHTML = `
+    <div class="card-top">
+      <span class="score-badge" style="background:${color}">${scoreLabel}</span>
+      <span class="card-company">${esc(listing.company)}</span>
+    </div>
+    <div class="card-title">${esc(listing.job_title)}</div>
+    <div class="card-meta">${esc(listing.location)} &middot; ${formatDate(listing.published)} &middot; ${esc((listing.stem || '').slice(0,4))}${dot}</div>
+  `;
+
+  card.addEventListener('click', () => selectCard(listing));
+  return card;
+}
+
+// ── Sortable ────────────────────────────────────────────────────────────────
+
+function initSortables() {
+  for (const colDef of COLUMNS) {
+    const el = document.getElementById(`list-${colDef.id}`);
+    if (!el) continue;
+    Sortable.create(el, {
+      group:      'pipeline',
+      animation:  150,
+      ghostClass: 'sortable-ghost',
+      dragClass:  'sortable-drag',
+      onEnd:      handleDragEnd,
+    });
+  }
+}
+
+async function handleDragEnd(evt) {
+  if (evt.from === evt.to) return;
+
+  const stem    = evt.item.dataset.stem;
+  const fromCol = evt.from.dataset.col;
+  const toCol   = evt.to.dataset.col;
+
+  const resp = await fetch('/api/move', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ stem, from: fromCol, to: toCol }),
+  });
+
+  if (!resp.ok) {
+    evt.from.insertBefore(evt.item, evt.from.children[evt.oldIndex] || null);
+    alert('Move failed. Please try again.');
+    return;
+  }
+
+  evt.item.dataset.col = toCol;
+  if (selectedStem === stem) selectedCol = toCol;
+
+  await loadAll();
+}
+
+// ── Panel ───────────────────────────────────────────────────────────────────
+
+async function selectCard(listing) {
+  document.querySelectorAll('.card.selected').forEach(c => c.classList.remove('selected'));
+
+  const cardEl = document.querySelector(`.card[data-stem="${CSS.escape(listing.stem)}"]`);
+  if (cardEl) cardEl.classList.add('selected');
+
+  selectedStem = listing.stem;
+  selectedCol  = listing.col;
+
+  document.getElementById('panel').classList.add('open');
+  document.getElementById('board').classList.add('panel-open');
+
+  renderPanelHeader(listing);
+  renderPanelActions(listing);
+
+  document.getElementById('comment-status').textContent = '';
+  document.getElementById('tab-scoring').innerHTML = '<div class="loading-msg">Loading...</div>';
+  document.getElementById('tab-jd').innerHTML      = '<div class="loading-msg">Loading...</div>';
+
+  const resp = await fetch('/api/content', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ stem: listing.stem, col: listing.col }),
+  });
+  const data = await resp.json();
+
+  document.getElementById('panel-comment').value = data.comment || '';
+
+  currentScoringContent = data.scoring || '';
+  document.getElementById('tab-scoring').innerHTML =
+    `<div class="md-body">${marked.parse(currentScoringContent)}</div>`;
+  document.getElementById('tab-jd').innerHTML =
+    `<div class="md-body">${marked.parse(data.jd || '')}</div>`;
+
+  const liEl = document.getElementById('panel-linkedin-link');
+  if (data.url) {
+    liEl.innerHTML = `<a href="${esc(data.url)}" target="_blank">LINKEDIN ↗</a>`;
+  } else {
+    liEl.innerHTML = '';
+  }
+}
+
+function renderPanelHeader(listing) {
+  const color = scoreColor(listing.fit_score);
+  const el    = document.getElementById('panel-score-large');
+  el.textContent   = String(listing.fit_score || '0').padStart(3, '0');
+  el.style.background = color;
+  document.getElementById('panel-job-title').textContent    = listing.job_title || '';
+  document.getElementById('panel-company-name').textContent = listing.company   || '';
+  document.getElementById('panel-loc-date').textContent     =
+    `${listing.location || ''} \u00b7 ${formatDate(listing.published)} \u00b7 ${(listing.stem || '').slice(0,4)}`;
+}
+
+function renderPanelActions(listing) {
+  const col    = listing.col;
+  const colIdx = COLUMNS.findIndex(c => c.id === col);
+  const el     = document.getElementById('panel-actions');
+  el.innerHTML = '';
+
+  // Move forward
+  if (col === 'in_process') {
+    addActionBtn(el, 'Application Sent', 'btn-applied', () => moveSelected('applied'));
+  } else if (colIdx >= 0 && colIdx < COLUMNS.length - 1) {
+    const next = COLUMNS[colIdx + 1];
+    addActionBtn(el, `\u2192 ${next.label}`, 'btn-next', () => moveSelected(next.id));
+  }
+
+  // Edit Score
+  addActionBtn(el, 'Edit Score', 'btn-edit-score', openScoreEditor);
+
+  // Move back
+  if (colIdx > 0) {
+    const prev = COLUMNS[colIdx - 1];
+    addActionBtn(el, `\u2190 ${prev.label}`, 'btn-prev', () => moveSelected(prev.id));
+  }
+
+  // Prev / Next navigation within the column
+  addActionBtn(el, '\u25b2 Prev', 'btn-nav', () => navigateCard(-1));
+  addActionBtn(el, '\u25bc Next', 'btn-nav', () => navigateCard(+1));
+
+  // Reject bar: shown for all columns except Applied
+  document.getElementById('panel-reject-bar').classList.toggle('hidden', col === 'applied');
+}
+
+function addActionBtn(parent, text, cls, handler) {
+  const btn = document.createElement('button');
+  btn.className = `action-btn ${cls}`;
+  btn.textContent = text;
+  btn.onclick = handler;
+  parent.appendChild(btn);
+}
+
+function closePanel() {
+  document.getElementById('panel').classList.remove('open');
+  document.getElementById('board').classList.remove('panel-open');
+  document.getElementById('panel-reject-bar').classList.add('hidden');
+  document.querySelectorAll('.card.selected').forEach(c => c.classList.remove('selected'));
+  selectedStem = null;
+  selectedCol  = null;
+}
+
+// ── Moves ───────────────────────────────────────────────────────────────────
+
+async function moveSelected(toCol) {
+  if (!selectedStem || !selectedCol) return;
+  if (selectedCol === toCol) return;
+
+  const stem    = selectedStem;
+  const fromCol = selectedCol;
+
+  const resp = await fetch('/api/move', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ stem, from: fromCol, to: toCol }),
+  });
+
+  if (!resp.ok) { alert('Move failed.'); return; }
+
+  await loadAll();
+
+  const listing = findListing(stem);
+  if (listing) selectCard(listing);
+  else closePanel();
+}
+
+function getPeerListings(col) {
+  return sortedListings(allListings[col] || [], col);
+}
+
+function navigateCard(delta) {
+  if (!selectedStem || !selectedCol) return;
+  const peers = getPeerListings(selectedCol);
+  const idx   = peers.findIndex(l => l.stem === selectedStem);
+  if (idx === -1) return;
+  const target = peers[idx + delta];
+  if (target) selectCard(target);
+}
+
+async function rejectSelected(reason) {
+  if (!selectedStem || !selectedCol) return;
+
+  // Find the card to move to after rejection
+  const peers   = getPeerListings(selectedCol);
+  const idx     = peers.findIndex(l => l.stem === selectedStem);
+  const nextStem = (peers[idx + 1] || peers[idx - 1] || {}).stem || null;
+
+  const resp = await fetch('/api/move', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({
+      stem: selectedStem, from: selectedCol, to: 'rejects', reason: reason || '',
+    }),
+  });
+
+  if (!resp.ok) { alert('Reject failed.'); return; }
+
+  closePanel();
+  await loadAll();
+
+  if (nextStem) {
+    const next = findListing(nextStem);
+    if (next) selectCard(next);
+  }
+}
+
+// Wire the static reject-reason bar (one listener, event-delegated per button)
+document.querySelectorAll('#panel-reject-bar .reject-reason-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    let reason = btn.dataset.reason;
+    if (reason === '__other__') {
+      reason = (prompt('Reject reason?') || '').trim();
+      if (!reason) return;
+    }
+    rejectSelected(reason);
+  });
+});
+
+// ── Comment ─────────────────────────────────────────────────────────────────
+
+document.getElementById('panel-comment').addEventListener('input', () => {
+  document.getElementById('comment-status').textContent = 'Unsaved';
+});
+
+document.getElementById('btn-save-comment').addEventListener('click', async () => {
+  if (!selectedStem || !selectedCol) return;
+  const text = document.getElementById('panel-comment').value;
+
+  const resp = await fetch('/api/save_comment', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ stem: selectedStem, col: selectedCol, text }),
+  });
+
+  if (resp.ok) {
+    document.getElementById('comment-status').textContent = 'Saved';
+    setTimeout(() => { document.getElementById('comment-status').textContent = ''; }, 2000);
+    const listing = findListing(selectedStem);
+    if (listing) listing.has_comment = text.length > 0;
+  }
+});
+
+// ── Tabs ────────────────────────────────────────────────────────────────────
+
+function switchTab(tab) {
+  const tabs = ['scoring', 'jd', 'notes'];
+  document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', tabs[i] === tab);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => {
+    p.classList.toggle('active', p.id === `tab-${tab}`);
+  });
+}
+
+// ── Stats ───────────────────────────────────────────────────────────────────
+
+function updateStats() {
+  document.getElementById('topbar-stats').innerHTML = COLUMNS.map(c => {
+    const count = (allListings[c.id] || []).length;
+    return `<span class="stat-chip" style="border-left-color:${c.color}">${c.label}: ${count}</span>`;
+  }).join('');
+}
+
+// ── Score Editor ─────────────────────────────────────────────────────────────
+
+function openScoreEditor() {
+  if (!selectedStem) return;
+  // Show only the Raw JSON block — that's the sole source of truth for scoring
+  const m = currentScoringContent.match(/```json\s*([\s\S]*?)```/);
+  const jsonText = m ? m[1].trim() : currentScoringContent;
+  document.getElementById('score-editor-content').value = jsonText;
+  document.getElementById('score-edit-status').textContent = '';
+  document.getElementById('btn-save-score').disabled = false;
+  document.getElementById('score-modal').style.display = 'flex';
+}
+
+function closeScoreEditor() {
+  document.getElementById('score-modal').style.display = 'none';
+}
+
+async function saveScoreEdit() {
+  if (!selectedStem || !selectedCol) return;
+  const content = document.getElementById('score-editor-content').value;
+  const statusEl = document.getElementById('score-edit-status');
+  const saveBtn  = document.getElementById('btn-save-score');
+
+  saveBtn.disabled = true;
+  statusEl.textContent = 'Saving...';
+
+  const resp = await fetch('/api/save_scoring', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ stem: selectedStem, col: selectedCol, content }),
+  });
+
+  const result = await resp.json();
+
+  if (!result.ok) {
+    statusEl.textContent = 'Error: ' + (result.error || 'unknown');
+    saveBtn.disabled = false;
+    return;
+  }
+
+  closeScoreEditor();
+  const oldCol  = selectedCol;
+  const newStem = result.new_stem;
+  selectedStem  = newStem;
+
+  await loadAll();
+
+  const listing = findListing(newStem);
+  if (listing) selectCard(listing);
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+
+loadAll();
+</script>
+<div id="score-modal">
+  <div id="score-modal-box">
+    <div id="score-modal-title">Edit Scoring Report</div>
+    <div id="score-modal-hint">Edit the JSON directly — add, remove, or change additions/deductions entries. Score is recalculated from this JSON on save.</div>
+    <textarea id="score-editor-content" spellcheck="false"></textarea>
+    <div id="score-modal-bar">
+      <button id="btn-save-score" onclick="saveScoreEdit()">Save &amp; Recalculate</button>
+      <button id="btn-cancel-score" onclick="closeScoreEditor()">Cancel</button>
+      <span id="score-edit-status"></span>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

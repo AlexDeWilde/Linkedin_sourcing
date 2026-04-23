@@ -1,0 +1,35 @@
+# Chrome session (large, contains login state)
+.chrome_profile/
+
+# Email inputs (personal)
+00-emails/
+
+# Pipeline staging / output folders (regenerated each run)
+01-extracted/
+02-deduplicated/
+03-quickfiltered/
+04-enriched/
+05-LLMfiltered/
+06-LLM_scored/
+07-rejects/
+08-consider/
+09-priorities/
+10-in_process/
+11-applied/
+
+# Cumulative state (changes every run, binary / large)
+06-listings_db.xlsx
+02-dedup_seen.txt
+
+# Debug dumps
+_debug_last_page.html
+
+# Python
+__pycache__/
+*.pyc
+
+# Editor / OS
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
