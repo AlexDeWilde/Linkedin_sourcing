@@ -37,6 +37,16 @@ quick orientation — update it at the same time as README when stage status,
 folder structure, or Excel schema changes.
 
 
+COMMIT APPROVAL WORKFLOW
+------------------------
+The project is a local git repo. Claude authors commits on the user's behalf
+but MUST ask for confirmation before each commit. Pause after meaningful
+changes and propose a commit message; wait for explicit yes before running
+`git commit`. Recommend commits at natural checkpoints: feature tested, before
+a risky change, after documentation updates, when the user says "it works".
+Other git rules (no destructive ops, message style) live in CLAUDE.md.
+
+
 OVERVIEW
 --------
 Sequential pipeline that harvests LinkedIn job postings, deduplicates, filters,

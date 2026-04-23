@@ -68,6 +68,14 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - `USER_GUIDE.md` is user-only operational manual. Do NOT read or update it unless the user explicitly asks.
 - When information fits both files, put it in README and add a short pointer in USER_GUIDE — never duplicate.
 
+## Git commit workflow
+
+The project is a local git repo with `user.email` and `user.name` set locally. Claude authors commits on the user's behalf.
+
+- **Commit approval rule lives in README.txt** (always read at session start). Summary: ask before every commit, wait for explicit yes.
+- **Commit messages:** short, imperative, describe the *why*. No Co-Authored-By trailers (single-user local repo).
+- **Never run destructive git operations** (`reset --hard`, `push --force`, branch deletion, `checkout --`) without explicit user request.
+
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
