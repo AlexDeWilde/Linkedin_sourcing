@@ -8,7 +8,8 @@ Reads .md files from 04-enriched/, calls Ollama (gemma4:26b) to:
 Non-EN/PT/ES jobs → 05-LLMfiltered/lang_rejects/
 Accepted jobs     → renamed and moved to 05-LLMfiltered/
 
-Rename format: YYYYMMDD_CITY_Title_-_Company_-_LinkedIn.url/.md
+Rename format: YYYYMMDD_CITY_Title_-_Company_-_Source.url/.md
+(Source is identified by the LLM — "LinkedIn", "Personio", "Greenhouse", etc.)
 """
 
 import json
@@ -43,12 +44,13 @@ TODAY = date.today()
 def call_ollama(md_content: str) -> dict:
     prompt = f"""Today's date is {TODAY.strftime('%Y-%m-%d')}.
 
-Analyze the LinkedIn job posting below and return ONLY a JSON object with exactly these fields:
+Analyze the job posting below and return ONLY a JSON object with exactly these fields:
 - "language": language of the job description section. Use "en" (English), "pt" (Portuguese), "es" (Spanish), or "other".
 - "published_date": estimated publication date as YYYYMMDD. Calculate from phrases like "X days ago", "X hours ago", "1 week ago", "2 weeks ago", "1 month ago", etc. relative to today. If not found, use today's date.
 - "city": job location city name. Use "REMOTE" if fully remote with no city. If multiple cities, use the primary one.
 - "title": the job title.
 - "company": the company name.
+- "source": the job board hosting this posting, inferred from the URL and page content. Examples: "LinkedIn", "Personio", "Greenhouse", "Lever", "Workday", "Indeed", "company-website". Default to "LinkedIn" if unclear.
 
 Respond with ONLY the JSON object — no explanation, no markdown, no extra text.
 
@@ -139,8 +141,8 @@ def sanitize(text: str) -> str:
     return text.strip("_")
 
 
-def build_stem(date_str: str, code: str, title: str, company: str) -> str:
-    return f"{date_str}_{code}_{sanitize(title)}_-_{sanitize(company)}_-_LinkedIn"
+def build_stem(date_str: str, code: str, title: str, company: str, source: str) -> str:
+    return f"{date_str}_{code}_{sanitize(title)}_-_{sanitize(company)}_-_{sanitize(source)}"
 
 
 def unique_path(parent: Path, stem: str, ext: str) -> Path:
@@ -189,6 +191,7 @@ def process_file(md_file: Path) -> None:
     city     = str(info.get("city", "")).strip()
     title    = str(info.get("title", md_file.stem)).strip()
     company  = str(info.get("company", "")).strip()
+    source   = str(info.get("source", "LinkedIn")).strip() or "LinkedIn"
 
     # Validate date format — fall back to today if malformed
     if not re.fullmatch(r"\d{8}", pub_date):
@@ -199,6 +202,7 @@ def process_file(md_file: Path) -> None:
     print(f"  City     : {city}")
     print(f"  Title    : {title}")
     print(f"  Company  : {company}")
+    print(f"  Source   : {source}")
 
     if lang not in ACCEPTED_LANGS:
         print(f"  → REJECTED (language: {lang!r}) — moving to lang_rejects/")
@@ -208,7 +212,7 @@ def process_file(md_file: Path) -> None:
         return
 
     code = city_code(city)
-    stem = build_stem(pub_date, code, title, company)
+    stem = build_stem(pub_date, code, title, company, source)
 
     # Resolve conflicts independently so both extensions share the same counter
     new_md  = unique_path(OUTPUT_DIR, stem, ".md")
