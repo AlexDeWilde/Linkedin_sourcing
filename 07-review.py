@@ -222,10 +222,10 @@ def api_move():
     dst = col_path(to_col)
     dst.mkdir(exist_ok=True)
 
-    for suffix in ['_SCORING.md', '.md', '.url', '_comment.md']:
-        f = src / f'{stem}{suffix}'
-        if f.exists():
-            shutil.move(str(f), str(dst / f'{stem}{suffix}'))
+    # Move every file sharing the stem (catches sidecars like _REPORT.md, _comment.md, etc.)
+    # The "stem." + "stem_" split avoids matching stems that are prefixes of others.
+    for f in list(src.glob(f'{stem}.*')) + list(src.glob(f'{stem}_*')):
+        shutil.move(str(f), str(dst / f.name))
 
     # Update Excel: status + stage date (+ reject_reason when rejecting)
     today = date.today().strftime('%d/%m/%Y')
@@ -388,11 +388,10 @@ def api_save_scoring():
     new_stem            = f'{ref_nr_str}_{new_score:03d}_{stem[9:]}'
 
     if new_stem != stem:
-        for suffix in ['_SCORING.md', '.md', '.url', '_comment.md']:
-            old_f = p / f'{stem}{suffix}'
-            new_f = p / f'{new_stem}{suffix}'
-            if old_f.exists():
-                old_f.rename(new_f)
+        # Rename every file sharing the stem (catches sidecars like _REPORT.md).
+        for old_f in list(p.glob(f'{stem}.*')) + list(p.glob(f'{stem}_*')):
+            new_f = p / (new_stem + old_f.name[len(stem):])
+            old_f.rename(new_f)
 
     (p / f'{new_stem}_SCORING.md').write_text(
         render_scoring_md(result, int(ref_nr_str)), encoding='utf-8')
