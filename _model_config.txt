@@ -1,0 +1,9 @@
+# Ollama model assignments per pipeline stage.
+# Format:  model_name  -  stage numbers (comma-separated), or empty for none.
+# 'default' is the fallback when a stage has no explicit assignment.
+# Edit model names and stage lists as needed; add new model lines freely.
+
+default        - gemma4:26b
+gemma4:e4b     - 05
+gemma4:26b     - 06
+deepseek-r1:8b -

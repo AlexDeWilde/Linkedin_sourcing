@@ -6,10 +6,6 @@ Your main Chrome stays open — no conflict, no restart needed.
 
 First run only: log into LinkedIn in the Chrome window that opens, then
 re-run. The session is saved in .chrome_profile/ and reused every time.
-
-Setup (one-time):
-    pip install playwright
-    playwright install chrome
 """
 
 import re

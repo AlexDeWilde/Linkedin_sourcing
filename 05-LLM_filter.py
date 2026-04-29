@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Stage 05 — LLM filter.
-Reads .md files from 04-enriched/, calls Ollama (gemma4:26b) to:
+Reads .md files from 04-enriched/, calls Ollama (model from _model_config.txt) to:
   - Detect language of the job description
   - Extract published date, city, title, company for renaming
 
@@ -30,10 +30,40 @@ OUTPUT_DIR  = Path(__file__).parent / "05-LLMfiltered"
 LANG_REJECT = OUTPUT_DIR / "lang_rejects"
 
 # ── Ollama config ──────────────────────────────────────────────────────────────
-OLLAMA_URL = "http://192.168.68.52:11434/api/chat"
-MODEL      = "gemma4:26b"
-NUM_CTX    = 49152
-MAX_TOKENS = 8192
+OLLAMA_URL  = "http://192.168.68.52:11434/api/chat"
+NUM_CTX     = 49152
+MAX_TOKENS  = 8192
+
+def _load_model(stage: int) -> str:
+    cfg = Path(__file__).parent / "_model_config.txt"
+    default = None
+    for raw in cfg.read_text(encoding="utf-8").splitlines():
+        line = raw.split("#")[0].strip()
+        if not line:
+            continue
+        model, _, rhs = line.partition("-")
+        model, rhs = model.strip(), rhs.strip()
+        if model == "default":
+            default = rhs  # rhs is the fallback model name
+            continue
+        if rhs and any(s.strip() == str(stage) for s in rhs.split(",")):
+            return model
+    if default:
+        return default
+    raise RuntimeError(f"No model assigned to stage {stage} and no default in _model_config.txt")
+
+MODEL = _load_model(5)
+
+def _unload_all_models():
+    base = OLLAMA_URL.replace("/api/chat", "")
+    try:
+        ps = requests.get(f"{base}/api/ps", timeout=10).json()
+    except Exception:
+        return  # Ollama unreachable — will surface properly at call time
+    for m in ps.get("models", []):
+        requests.post(f"{base}/api/generate",
+                      json={"model": m["name"], "keep_alive": 0}, timeout=30)
+        print(f"  Unloaded {m['name']} from Ollama.", flush=True)
 
 ACCEPTED_LANGS = {"en", "pt", "es"}
 TODAY = date.today()
@@ -160,7 +190,7 @@ def unique_path(parent: Path, stem: str, ext: str) -> Path:
 
 # ── Per-file processing ────────────────────────────────────────────────────────
 
-def process_file(md_file: Path) -> None:
+def process_file(md_file: Path, force: bool = False) -> None:
     url_file = md_file.with_suffix(".url")
     if not url_file.exists():
         print(f"  WARNING: no matching .url found — skipping.")
@@ -168,7 +198,7 @@ def process_file(md_file: Path) -> None:
 
     content = md_file.read_text(encoding="utf-8")
 
-    if "no longer accepting applications" in content.lower():
+    if "no longer accepting applications" in content.lower() and not force:
         print(f"  → CLOSED (no longer accepting applications) — moving to closed/")
         closed_dir = OUTPUT_DIR / "closed"
         closed_dir.mkdir(exist_ok=True)
@@ -205,11 +235,14 @@ def process_file(md_file: Path) -> None:
     print(f"  Source   : {source}")
 
     if lang not in ACCEPTED_LANGS:
-        print(f"  → REJECTED (language: {lang!r}) — moving to lang_rejects/")
-        LANG_REJECT.mkdir(parents=True, exist_ok=True)
-        shutil.move(str(md_file),  LANG_REJECT / md_file.name)
-        shutil.move(str(url_file), LANG_REJECT / url_file.name)
-        return
+        if force:
+            print(f"  FORCE — language {lang!r} accepted (bypassing language filter)")
+        else:
+            print(f"  → REJECTED (language: {lang!r}) — moving to lang_rejects/")
+            LANG_REJECT.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(md_file),  LANG_REJECT / md_file.name)
+            shutil.move(str(url_file), LANG_REJECT / url_file.name)
+            return
 
     code = city_code(city)
     stem = build_stem(pub_date, code, title, company, source)
@@ -239,17 +272,26 @@ def process_file(md_file: Path) -> None:
 # ── Main ───────────────────────────────────────────────────────────────────────
 
 def main():
+    force = "--force" in sys.argv
+
+    _unload_all_models()
+
     md_files = sorted(INPUT_DIR.glob("*.md"))
     if not md_files:
         print("04-enriched/ has no .md files — nothing to do.")
         return
 
-    print(f"Found {len(md_files)} .md file(s) in 04-enriched/")
+    print(f"Stage 05 — LLM Filter")
+    print(f"  Model : {MODEL}")
+    print(f"  Input : 04-enriched/  ({len(md_files)} listings)")
+    print(f"  Output: 05-LLMfiltered/")
+    if force:
+        print("Force mode — language filter and closed-listing check bypassed.")
     OUTPUT_DIR.mkdir(exist_ok=True)
 
     for i, md_file in enumerate(md_files, 1):
         print(f"\n[{i}/{len(md_files)}] {md_file.name}")
-        process_file(md_file)
+        process_file(md_file, force=force)
 
 
     print("\nDone.")

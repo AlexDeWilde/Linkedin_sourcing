@@ -79,7 +79,7 @@ body {
   align-items: flex-start;
   transition: padding-right 0.3s ease;
 }
-#board.panel-open { padding-right: 632px; }
+#board.panel-open { padding-right: 727px; }
 
 /* ── COLUMN ── */
 .column {
@@ -240,7 +240,7 @@ body {
   right: 0;
   top: 52px;
   bottom: 0;
-  width: 618px;
+  width: 711px;
   background: white;
   box-shadow: -4px 0 28px rgba(0,0,0,0.13);
   transform: translateX(100%);
@@ -384,11 +384,6 @@ body {
   transition: background 0.15s;
 }
 .reject-reason-btn:hover { background: #ffcdd2; }
-.reject-reason-btn.reject-other {
-  background: #fff3e0;
-  color: #e65100;
-}
-.reject-reason-btn.reject-other:hover { background: #ffe0b2; }
 
 /* comment section (inside Notes tab) */
 #panel-comment-section {
@@ -623,7 +618,7 @@ body {
     <button class="reject-reason-btn" data-reason="Pay">Pay</button>
     <button class="reject-reason-btn" data-reason="Role">Role</button>
     <button class="reject-reason-btn" data-reason="Expired">Expired</button>
-    <button class="reject-reason-btn reject-other" data-reason="__other__">Other&hellip;</button>
+    <button class="reject-reason-btn" data-reason="Language(s)">Language(s)</button>
   </div>
   <div id="panel-tabs">
     <button class="tab-btn active" onclick="switchTab('scoring')">Scoring</button>
@@ -1068,12 +1063,7 @@ async function rejectSelected(reason) {
 // Wire the static reject-reason bar (one listener, event-delegated per button)
 document.querySelectorAll('#panel-reject-bar .reject-reason-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    let reason = btn.dataset.reason;
-    if (reason === '__other__') {
-      reason = (prompt('Reject reason?') || '').trim();
-      if (!reason) return;
-    }
-    rejectSelected(reason);
+    rejectSelected(btn.dataset.reason);
   });
 });
 

@@ -60,6 +60,24 @@ def parse_url(url_file: Path) -> str | None:
     return None
 
 
+def parse_stem(url_file: Path) -> tuple[str, str]:
+    """
+    Extract (title, company) from a non-email filename.
+    Format: YYYYMMDD_Title - Company - Source
+    Returns ('', '') if the pattern doesn't match.
+    """
+    stem = url_file.stem
+    # Strip date prefix YYYYMMDD_
+    stem = re.sub(r'^\d{8}_', '', stem)
+    # Split on ' - '; last part is source, second-to-last is company, rest is title
+    parts = stem.split(' - ')
+    if len(parts) < 3:
+        return '', ''
+    company = parts[-2].strip()
+    title   = ' - '.join(parts[:-2]).strip()
+    return title, company
+
+
 def first_text(page, selectors: list[str]) -> str:
     for sel in selectors:
         try:
@@ -71,6 +89,29 @@ def first_text(page, selectors: list[str]) -> str:
         except Exception:
             continue
     return ""
+
+
+def find_title_js(page) -> str:
+    """
+    Find job title without relying on class names.
+    Uses the company link (stable href pattern) as an anchor, walks up the DOM,
+    and returns the first <p> with substantial text in the same card container.
+    """
+    return page.evaluate("""
+        () => {
+            const anchor = document.querySelector('a[href*="/company/"][href*="/life/"]');
+            if (!anchor) return '';
+            let el = anchor;
+            for (let i = 0; i < 6; i++) {
+                el = el.parentElement;
+                if (!el) break;
+                const p = el.querySelector('p');
+                if (p && (p.innerText || '').trim().length > 10)
+                    return p.innerText.trim();
+            }
+            return '';
+        }
+    """) or ""
 
 
 def expand_description(page) -> None:
@@ -208,27 +249,49 @@ def process_file(page, url_file: Path) -> None:
     page.goto(url, wait_until="domcontentloaded", timeout=30_000)
     page.wait_for_timeout(5_000)
 
+    is_email = '- Email -' in url_file.stem
+
     title = first_text(page, [
         "h1.job-details-jobs-unified-top-card__job-title",
         "h1[class*='job-title']",
         "h1",
-    ])
-    print(f"  Title  : {title or '(not found)'}")
+    ]) or find_title_js(page)
 
     company = first_text(page, [
+        "a[href*='/company/'][href*='/life/']",          # structural — stable
         ".job-details-jobs-unified-top-card__company-name",
         "[class*='company-name']",
         ".jobs-unified-top-card__company-name",
     ])
-    print(f"  Company: {company or '(not found)'}")
+
+    if not title and not is_email:
+        fn_title, fn_company = parse_stem(url_file)
+        if fn_title:
+            title   = fn_title
+            company = company or fn_company
+            print(f"  Title  : {title} (from filename)")
+            print(f"  Company: {company or '(not found)'} (from filename)")
+        else:
+            print(f"  Title  : (not found)")
+            print(f"  Company: {company or '(not found)'}")
+    else:
+        print(f"  Title  : {title or '(not found)'}")
+        print(f"  Company: {company or '(not found)'}")
+
+    if not title:
+        # Selectors are stale — dump page HTML so selectors can be updated
+        print("  WARNING: title not found — saving debug HTML for selector diagnosis.")
+        DEBUG_HTML.write_text(page.content(), encoding="utf-8", newline="\n")
+        print(f"  Debug HTML saved: {DEBUG_HTML.name}")
 
     expand_description(page)
     desc_html = find_desc_html(page)
 
     if not desc_html:
-        print("  WARNING: description not found — saving debug HTML.")
-        DEBUG_HTML.write_text(page.content(), encoding="utf-8", newline="\n")
-        print(f"  Debug HTML saved: {DEBUG_HTML.name}")
+        print("  WARNING: description not found.")
+        if title:  # only dump if we haven't already
+            DEBUG_HTML.write_text(page.content(), encoding="utf-8", newline="\n")
+            print(f"  Debug HTML saved: {DEBUG_HTML.name}")
 
     desc_md = html_to_md(desc_html) if desc_html else "(description not found)"
 

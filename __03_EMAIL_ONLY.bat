@@ -49,5 +49,3 @@ echo ============================================================
 echo  DONE - %DATE%  %TIME%
 echo  Run 07-review.bat to open the Command Center.
 echo ============================================================
-echo.
-pause

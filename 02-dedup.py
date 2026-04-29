@@ -7,6 +7,7 @@ Reads .url files from 01-extracted/, checks each URL against 02-dedup_seen.txt.
 """
 
 import shutil
+import sys
 from pathlib import Path
 
 INPUT_DIR  = Path(__file__).parent / "01-extracted"
@@ -36,6 +37,8 @@ def safe_dest(folder: Path, filename: str) -> Path:
 
 
 def main():
+    force = "--force" in sys.argv
+
     OUTPUT_DIR.mkdir(exist_ok=True)
     DEDUP_FILE.touch(exist_ok=True)
 
@@ -61,9 +64,15 @@ def main():
                 continue
 
             if url in known_urls:
-                url_file.unlink()
-                print(f"  DEL  (duplicate): {url_file.name}")
-                deleted += 1
+                if force:
+                    dest = safe_dest(OUTPUT_DIR, url_file.name)
+                    shutil.move(str(url_file), dest)
+                    print(f"  FORCE (duplicate, passing through): {dest.name}")
+                    moved += 1
+                else:
+                    url_file.unlink()
+                    print(f"  DEL  (duplicate): {url_file.name}")
+                    deleted += 1
             else:
                 known_urls.add(url)
                 dedup_out.write(url + "\n")

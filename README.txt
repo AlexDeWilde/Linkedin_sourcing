@@ -14,7 +14,7 @@ of the following:
   - A folder added, renamed, or removed
   - The Excel database schema (columns added or changed)
   - A config file's purpose or format
-  - ___RUN_ALL.bat behaviour (stages covered, post-run actions)
+  - __01_RUN_ALL.bat behaviour (stages covered, post-run actions)
   - Ollama model, host, or streaming configuration
 
 What to update and where:
@@ -52,7 +52,7 @@ OVERVIEW
 Sequential pipeline that harvests LinkedIn job postings, deduplicates, filters,
 enriches, and LLM-processes them into a scored database for review.
 Each stage reads from its input folder and writes to its output folder.
-Run ___RUN_ALL.bat to execute all stages unattended end-to-end.
+Run __01_RUN_ALL.bat to execute all stages unattended end-to-end.
 Run individual .bat files to execute a single stage.
 
 DEPENDENCIES
@@ -67,17 +67,26 @@ OLLAMA CONNECTION  (stages 05 and 06)
   IP          : 192.168.68.52
   Port        : 11434
   API URL     : http://192.168.68.52:11434/api/chat
-  Model       : gemma4:26b
+  Model       : configured per-stage in _model_config.txt (see below)
   num_ctx     : 49152   (context window — fits prompt + full JD comfortably)
   num_predict : 8192    (stage 05) / 2048 (stage 06 — JSON output is short)
 
+  MODEL CONFIG  (_model_config.txt)
+  ----------------------------------
+  Each stage reads its model name at startup from _model_config.txt.
+  Format:  model_name  -  stage_numbers (comma-separated)
+           default     -  fallback_model_name
+  Empty stage field means that model is not used by any stage.
+  Edit the file directly to change models; no code changes needed.
+  If a stage has no explicit assignment and no default line, it aborts.
+
   CRITICAL STREAMING FLAGS (apply to both stages 05 and 06)
   ----------------------------------------------------------
-  gemma4:26b runs in thinking mode by default. In thinking mode ALL generated
-  tokens go into a "thinking" field — the "content" field stays empty until
-  done, making the response appear to hang and returning an empty string.
+  Thinking-mode models (e.g. gemma4:26b) put ALL generated tokens into a
+  "thinking" field by default — the "content" field stays empty until done,
+  making the response appear to hang and returning an empty string.
 
-  Three flags are required together for live streaming to work:
+  Three flags are required together for live streaming to work with such models:
 
     1. "think": false          Top-level payload key. Disables thinking mode.
                                Without this, content is always empty.
@@ -100,9 +109,9 @@ OLLAMA CONNECTION  (stages 05 and 06)
     - chcp 65001 > nul in all .bat files (UTF-8 console encoding)
 
   Chunk structure with think:false:
-    {"model":"gemma4:26b","message":{"role":"assistant","content":"..."},"done":false}
-  Chunk structure WITHOUT think:false (broken — do not use):
-    {"model":"gemma4:26b","message":{"role":"assistant","content":"","thinking":"..."},"done":false}
+    {"model":"...","message":{"role":"assistant","content":"..."},"done":false}
+  Chunk structure WITHOUT think:false (broken for thinking-mode models):
+    {"model":"...","message":{"role":"assistant","content":"","thinking":"..."},"done":false}
 
 
 SCORING ARCHITECTURE (stage 06)
@@ -192,8 +201,8 @@ EXCEL DATABASE  (06-listings_db.xlsx)
     R: date_rejected    DD/MM/YYYY — stamped when card rejected
     S: comment          free-text comment saved from the review console
     T: reject_reason    reason chosen when rejecting. Preset buttons write one of:
-                        Location / Seniority / Stack / Company / Pay / Role.
-                        "Other…" writes whatever free text was entered.
+                        Location / Seniority / Stack / Company / Pay / Role /
+                        Expired / Language(s).
 
   ref_nr and fit_score are stored as text with @ format to preserve zero-padding.
   setup_excel_columns() runs at 07-review.py startup and adds missing N–T columns
@@ -203,15 +212,16 @@ EXCEL DATABASE  (06-listings_db.xlsx)
 
 FOLDER / FILE STRUCTURE
 -----------------------
-  ___RUN_ALL.bat           Run full pipeline end-to-end (stages 00+01-07), unattended:
-                           parses emails → scrapes searches → processes → opens CC →
-                           300s pre-hibernate countdown. A keypress during the
-                           countdown cancels hibernation AND closes this window;
+  __01_RUN_ALL.bat         Full pipeline (stages 00–07) + 300s hibernate countdown.
+                           Keypress cancels hibernation and closes this window;
                            the 07 server (separate window) keeps running.
-                           If the countdown reaches zero the PC hibernates.
+  __02_RUN_ALL_NOHIB.bat  Full pipeline (stages 00–07), no hibernation.
+  __03_EMAIL_ONLY.bat     Email + pipeline (stages 00, 02–06), no hibernate.
+                           Skips stage 01 LinkedIn search scraping.
+  __04_EXTRACTED.bat      Force-mode pipeline (stages 02–06) for manually placed URLs.
+                           Bypasses dedup exclusion, keyword filter, language filter.
   00-emails/               Drop .eml files here before running stage 00 or RUN_ALL
   00-parse_email.py/.bat   Stage 00: email-only extraction to 01-extracted/
-  00-parse_and_process.bat Stage 00 + stages 02-06 (skips LinkedIn search scraping)
   00-links.txt             LinkedIn search URLs fed to stage 01 (# = comment)
   01-extract.py/.bat       Stage 01
   01-extracted/            Stage 01 output staging area
@@ -264,8 +274,8 @@ STAGES
   Duplicates: stage 02 dedup catches any URL already seen from search results.
   Bat options:
     00-parse_email.bat       extraction only (manual pipeline run after)
-    00-parse_and_process.bat extraction + stages 02-06 (skips LinkedIn search)
-    ___RUN_ALL.bat           runs stage 00 then all stages including 07
+    __03_EMAIL_ONLY.bat      extraction + stages 02-06 (skips LinkedIn search)
+    __01_RUN_ALL.bat         runs stage 00 then all stages including 07
 
 00 — SEARCH LINKS  (config file, not a script)
   File   : 00-links.txt
@@ -326,7 +336,7 @@ STAGES
   Input  : 04-enriched/  (.url + .md pairs)
   Output : 05-LLMfiltered/  (renamed .url + .md pairs)
            05-LLMfiltered/lang_rejects/  (non-EN/PT/ES files, original names)
-  Model  : gemma4:26b via Ollama  (see OLLAMA CONNECTION above)
+  Model  : per _model_config.txt  (see OLLAMA CONNECTION above)
   What   : One Ollama call per file. Streams response live to console.
            Detects the language of the job description.
            Rejects non-English / non-Portuguese / non-Spanish -> lang_rejects/.
@@ -335,7 +345,7 @@ STAGES
            For accepted files: estimates publication date, extracts city/title/company,
            renames both files using the stage 05 naming convention, moves to
            05-LLMfiltered/. Retries up to 2x on empty/unparseable response.
-  Notes  : Fully unattended. Requires Ollama on Legion with gemma4:26b loaded.
+  Notes  : Fully unattended. Requires Ollama on Legion with the configured model loaded.
            See CRITICAL STREAMING FLAGS above.
 
 06 — LLM SCORING
@@ -344,7 +354,7 @@ STAGES
   Output : 06-LLM_scored/   (.url + .md + _SCORING.md per listing)
            06-listings_db.xlsx  (one row appended per listing)
   Criteria: 06-score_crit.txt  (edit freely — live reload on every run)
-  Model  : gemma4:26b via Ollama  (see OLLAMA CONNECTION and SCORING ARCHITECTURE)
+  Model  : per _model_config.txt  (see OLLAMA CONNECTION and SCORING ARCHITECTURE)
   What   : Fully unattended. One Ollama call per listing.
            Streams scoring JSON live to console.
            Python recalculates final score from itemised breakdown (LLM math ignored).
@@ -360,7 +370,7 @@ STAGES
            _SCORING.md contains: summary table, additions, deductions, disqualifier
            flags, notes, and full raw JSON — used as input for stage 07.
   Rollback procedure (to reprocess listings): see USER_GUIDE.md.
-  Notes  : Requires Ollama on Legion with gemma4:26b loaded.
+  Notes  : Requires Ollama on Legion with the configured model loaded.
            See CRITICAL STREAMING FLAGS above.
 
 07 — JOB FINDING COMMAND CENTER  (complete)
@@ -381,7 +391,7 @@ STAGES
   Card actions:
     Drag-and-drop    Move card between any visible column
     Reject buttons   One preset button per reason — Location / Seniority / Stack /
-                     Company / Pay / Role / Expired — plus Other… for free text.
+                     Company / Pay / Role / Expired / Language(s).
                      Expired = job was de-listed from LinkedIn.
                      Moves triplet to 07-rejects/, stamps column R (date_rejected)
                      and column T (reject_reason), auto-advances to next card.
@@ -399,7 +409,7 @@ STAGES
     Meta line        CITY · DATE · REF_NR (ref_nr is the 4-digit prefix — lets you
                      locate the file on disk by name).
 
-  Side panel (opens on card click, 618px wide):
+  Side panel (opens on card click, 711px wide):
     Header           Score badge, job title, company, city · date · ref_nr,
                      LINKEDIN ↗ link (opens job page in new tab)
     Scoring tab      Rendered _SCORING.md (markdown)

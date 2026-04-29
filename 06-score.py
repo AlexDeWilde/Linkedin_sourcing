@@ -39,10 +39,40 @@ CRITERIA   = BASE_DIR / "06-score_crit.txt"
 EXCEL_FILE = BASE_DIR / "06-listings_db.xlsx"
 
 # ── Ollama config ───────────────────────────────────────────────────────────────
-OLLAMA_URL = "http://192.168.68.52:11434/api/chat"
-MODEL      = "gemma4:26b"
-NUM_CTX    = 49152
-MAX_TOKENS = 2048
+OLLAMA_URL  = "http://192.168.68.52:11434/api/chat"
+NUM_CTX     = 49152
+MAX_TOKENS  = 2048
+
+def _load_model(stage: int) -> str:
+    cfg = Path(__file__).parent / "_model_config.txt"
+    default = None
+    for raw in cfg.read_text(encoding="utf-8").splitlines():
+        line = raw.split("#")[0].strip()
+        if not line:
+            continue
+        model, _, rhs = line.partition("-")
+        model, rhs = model.strip(), rhs.strip()
+        if model == "default":
+            default = rhs  # rhs is the fallback model name
+            continue
+        if rhs and any(s.strip() == str(stage) for s in rhs.split(",")):
+            return model
+    if default:
+        return default
+    raise RuntimeError(f"No model assigned to stage {stage} and no default in _model_config.txt")
+
+MODEL = _load_model(6)
+
+def _unload_all_models():
+    base = OLLAMA_URL.replace("/api/chat", "")
+    try:
+        ps = requests.get(f"{base}/api/ps", timeout=10).json()
+    except Exception:
+        return  # Ollama unreachable — will surface properly at call time
+    for m in ps.get("models", []):
+        requests.post(f"{base}/api/generate",
+                      json={"model": m["name"], "keep_alive": 0}, timeout=30)
+        print(f"  Unloaded {m['name']} from Ollama.", flush=True)
 
 TODAY = date.today()
 
@@ -95,6 +125,53 @@ def next_ref_nr() -> int:
     return max_ref + 1
 
 
+def lookup_ref_nr_by_url(url: str) -> int | None:
+    """Search Excel column M (url) for a matching URL. Return ref_nr int if found."""
+    if not EXCEL_FILE.exists() or not url:
+        return None
+    wb = load_workbook(EXCEL_FILE, read_only=True, data_only=True)
+    ws = wb.active
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        if len(row) >= 13 and str(row[12] or "").strip() == url.strip():
+            ref_val = row[0]
+            wb.close()
+            if ref_val is not None:
+                try:
+                    return int(str(ref_val).strip())
+                except (ValueError, TypeError):
+                    pass
+            return None
+    wb.close()
+    return None
+
+
+def update_excel_row_for_rescore(ref_nr: int, result: dict) -> None:
+    """Update the Excel row matching ref_nr with new score data."""
+    wb = load_workbook(EXCEL_FILE)
+    ws = wb.active
+    ref_str   = str(ref_nr).zfill(4)
+    score_str = f"{result.get('fit_score', 0):03d}" if result.get("fit_score") is not None else None
+    date_pub  = str(result.get("date_published", TODAY.strftime("%Y%m%d")))
+
+    for row in ws.iter_rows(min_row=2):
+        if str(row[0].value or "").strip().zfill(4) == ref_str:
+            row[1].value = score_str
+            row[1].number_format = "@"
+            row[2].value = format_date_dmy(date_pub)
+            row[3].value = result.get("city_code", "")
+            if result.get("client_company"):
+                row[4].value = result.get("client_company")
+            row[5].value = result.get("job_title", "")
+            row[6].value = result.get("company_name", "")
+            row[7].value = result.get("source", "LinkedIn")
+            row[8].value = TODAY.strftime("%d/%m/%Y")
+            row[9].value = "new"
+            break
+
+    wb.save(EXCEL_FILE)
+    wb.close()
+
+
 def format_date_dmy(yyyymmdd: str) -> str:
     """Convert YYYYMMDD to DD/MM/YYYY for Excel consistency."""
     if re.fullmatch(r"\d{8}", yyyymmdd):
@@ -103,11 +180,6 @@ def format_date_dmy(yyyymmdd: str) -> str:
 
 
 # ── Ollama ──────────────────────────────────────────────────────────────────────
-
-def estimate_tokens(text: str) -> int:
-    """Rough token estimate: ~4 chars per token."""
-    return len(text) // 4
-
 
 def call_ollama(md_content: str, criteria: str) -> dict:
     prompt = (
@@ -122,8 +194,7 @@ def call_ollama(md_content: str, criteria: str) -> dict:
         f"=== JOB LISTING ===\n{md_content}\n==================="
     )
 
-    token_est = estimate_tokens(prompt)
-    print(f"  Prompt size : ~{token_est} tokens  (window: {NUM_CTX})", flush=True)
+    print(f"  Prompt size : ~{len(prompt) // 4} tokens  (window: {NUM_CTX})", flush=True)
     print(f"  Streaming response from {MODEL}:")
     print(f"  {'─'*50}")
 
@@ -233,8 +304,6 @@ def display_result(result: dict, ref_nr: int, new_stem: str) -> None:
     print(f"{'─'*60}")
 
 
-
-
 # ── Scoring file ────────────────────────────────────────────────────────────────
 
 def write_scoring_file(path: Path, result: dict, ref_nr: int) -> None:
@@ -326,7 +395,7 @@ def append_to_excel(result: dict, ref_nr: int, url: str) -> None:
 
 # ── Per-file processing ─────────────────────────────────────────────────────────
 
-def process_file(md_file: Path, criteria: str, idx: int, total: int) -> None:
+def process_file(md_file: Path, criteria: str, idx: int, total: int, force: bool = False) -> None:
     """Score one listing, write output triplet, append Excel row. Unattended."""
     url_file = md_file.with_suffix(".url")
 
@@ -337,7 +406,7 @@ def process_file(md_file: Path, criteria: str, idx: int, total: int) -> None:
     content = md_file.read_text(encoding="utf-8")
     url = extract_url(content)
 
-    if "no longer accepting applications" in content.lower():
+    if "no longer accepting applications" in content.lower() and not force:
         print(f"  → CLOSED (no longer accepting applications) — skipping.")
         closed_dir = INPUT_DIR / "closed"
         closed_dir.mkdir(exist_ok=True)
@@ -372,7 +441,7 @@ def process_file(md_file: Path, criteria: str, idx: int, total: int) -> None:
         except (ValueError, TypeError):
             pts = 0
         crit = str(a.get("criterion", "")).lower()
-        if "industr" in crit or "industry" in crit:
+        if "industr" in crit:
             if industry_bonus_applied:
                 a["points"] = 0
                 a["detail"] = a.get("detail", "") + " [duplicate — industry bonus applied once only]"
@@ -410,7 +479,17 @@ def process_file(md_file: Path, criteria: str, idx: int, total: int) -> None:
 
     # ── Build new filename stem ─────────────────────────────────────────────────
 
-    ref_nr         = next_ref_nr()
+    if force:
+        existing_ref = lookup_ref_nr_by_url(url)
+    else:
+        existing_ref = None
+
+    if existing_ref is not None:
+        ref_nr = existing_ref
+        print(f"  Force-rescore: reusing ref_nr {ref_nr:04d}")
+    else:
+        ref_nr = next_ref_nr()
+
     title_s        = sanitize(result.get("job_title", ""))
     company_s      = sanitize(result.get("company_name", ""))
     src_s          = sanitize(result.get("source", "LinkedIn"))
@@ -424,7 +503,10 @@ def process_file(md_file: Path, criteria: str, idx: int, total: int) -> None:
 
     # ── Commit ──────────────────────────────────────────────────────────────────
 
-    append_to_excel(result, ref_nr, url)
+    if existing_ref is not None:
+        update_excel_row_for_rescore(ref_nr, result)
+    else:
+        append_to_excel(result, ref_nr, url)
 
     OUTPUT_DIR.mkdir(exist_ok=True)
     new_md  = OUTPUT_DIR / f"{new_stem}.md"
@@ -450,6 +532,11 @@ def process_file(md_file: Path, criteria: str, idx: int, total: int) -> None:
 # ── Main ────────────────────────────────────────────────────────────────────────
 
 def main():
+    force = "--force" in sys.argv
+
+    if _load_model(5) != MODEL:
+        _unload_all_models()
+
     md_files = sorted(f for f in INPUT_DIR.glob("*.md")
                       if not f.stem.endswith("_REPORT")
                       and not f.stem.endswith("_SCORING"))
@@ -468,10 +555,12 @@ def main():
     print(f"  Input      : {INPUT_DIR.name}/  ({len(md_files)} listings)")
     print(f"  Output     : {OUTPUT_DIR.name}/")
     print(f"  Excel      : {EXCEL_FILE.name}")
+    if force:
+        print(f"  Force mode : closed-listing check bypassed; ref_nr reused if URL known")
     print(f"  Next ref_nr: {next_ref_nr():04d}")
 
     for i, md_file in enumerate(md_files, 1):
-        process_file(md_file, criteria, i, len(md_files))
+        process_file(md_file, criteria, i, len(md_files), force=force)
 
     print("\nDone.")
 
