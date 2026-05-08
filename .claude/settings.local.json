@@ -7,7 +7,8 @@
       "Bash(sed -n '208,220p' \"D:/_Claude_projects/LinkedIn_sourcing/01-extract.py\")",
       "Bash(sed -n '242,250p' \"D:/_Claude_projects/LinkedIn_sourcing/01-extract.py\")",
       "Bash(pandoc --version)",
-      "Bash(grep \"\\\\.md$\")"
+      "Bash(grep \"\\\\.md$\")",
+      "Bash(python3 -c ' *)"
     ]
   }
 }

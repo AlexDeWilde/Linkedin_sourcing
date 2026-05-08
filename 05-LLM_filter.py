@@ -25,9 +25,10 @@ import requests
 sys.stdout.reconfigure(write_through=True)
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
-INPUT_DIR   = Path(__file__).parent / "04-enriched"
-OUTPUT_DIR  = Path(__file__).parent / "05-LLMfiltered"
-LANG_REJECT = OUTPUT_DIR / "lang_rejects"
+INPUT_DIR       = Path(__file__).parent / "04-enriched"
+OUTPUT_DIR      = Path(__file__).parent / "05-LLMfiltered"
+LANG_REJECT     = OUTPUT_DIR / "lang_rejects"
+LANG_REQ_REJECT = OUTPUT_DIR / "lang_req_rejects"
 
 # ── Ollama config ──────────────────────────────────────────────────────────────
 OLLAMA_URL  = "http://192.168.68.52:11434/api/chat"
@@ -68,6 +69,56 @@ def _unload_all_models():
 ACCEPTED_LANGS = {"en", "pt", "es"}
 TODAY = date.today()
 
+# ── Language requirement filter ────────────────────────────────────────────────
+
+# Languages never excluded regardless of required level
+_LANG_EXEMPT = {
+    "english", "en", "portuguese", "pt", "spanish", "es",
+    "german", "de", "deutsch",
+}
+
+# Levels that map to B2 or above (triggers exclusion for French and Dutch)
+_B2_PLUS = {
+    "b2", "c1", "c2", "fluent", "native", "mother tongue",
+    "full professional", "full professional proficiency",
+    "professional proficiency", "advanced", "upper intermediate",
+    "business fluent", "near native", "bilingual",
+}
+
+# Levels that map to B1 or above (triggers exclusion for all other non-exempt languages)
+_B1_PLUS = _B2_PLUS | {
+    "b1", "intermediate", "lower intermediate", "conversational",
+    "working proficiency", "limited working proficiency",
+    "professional", "business",
+}
+
+# French and Dutch canonical name sets
+_FRENCH  = {"french", "fr", "français", "francais", "french language"}
+_DUTCH   = {"dutch", "nl", "flemish", "vlaams", "nederlands", "dutch language", "flemish dutch"}
+
+
+def lang_req_disqualifier(lang_reqs: list) -> tuple[bool, str]:
+    """Return (True, reason_string) if any hard language requirement triggers exclusion."""
+    for req in lang_reqs:
+        if not req.get("required", True):
+            continue
+        lang  = str(req.get("language", "")).lower().strip()
+        level = str(req.get("level",    "")).lower().strip()
+
+        if lang in _LANG_EXEMPT:
+            continue
+
+        if lang in _FRENCH or lang in _DUTCH:
+            if level in _B2_PLUS:
+                return True, f"{req.get('language', lang)} at {req.get('level', level)} required"
+            continue
+
+        # All other languages: B1 or above → exclude
+        if level in _B1_PLUS:
+            return True, f"{req.get('language', lang)} at {req.get('level', level)} required"
+
+    return False, ""
+
 
 # ── Ollama call ────────────────────────────────────────────────────────────────
 
@@ -81,6 +132,7 @@ Analyze the job posting below and return ONLY a JSON object with exactly these f
 - "title": the job title.
 - "company": the company name.
 - "source": the job board hosting this posting, inferred from the URL and page content. Examples: "LinkedIn", "Personio", "Greenhouse", "Lever", "Workday", "Indeed", "company-website". Default to "LinkedIn" if unclear.
+- "language_requirements": list of language proficiencies that are HARD REQUIREMENTS in the job posting. Include ONLY languages explicitly required — not optional, preferred, "a plus", or "desirable". Each entry must have: {{"language": "<language name>", "level": "<CEFR level or descriptor such as B1, B2, C1, fluent, native, intermediate, advanced, basic>", "required": true}}. If no hard language requirements are stated, return an empty list [].
 
 Respond with ONLY the JSON object — no explanation, no markdown, no extra text.
 
@@ -243,6 +295,20 @@ def process_file(md_file: Path, force: bool = False) -> None:
             shutil.move(str(md_file),  LANG_REJECT / md_file.name)
             shutil.move(str(url_file), LANG_REJECT / url_file.name)
             return
+
+    # ── Language requirement check ─────────────────────────────────────────────
+    lang_reqs = info.get("language_requirements", [])
+    if not isinstance(lang_reqs, list):
+        lang_reqs = []
+    disqualified, reason = lang_req_disqualifier(lang_reqs)
+    if disqualified and not force:
+        print(f"  → REJECTED (language requirement: {reason}) — moving to lang_req_rejects/")
+        LANG_REQ_REJECT.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(md_file),  LANG_REQ_REJECT / md_file.name)
+        shutil.move(str(url_file), LANG_REQ_REJECT / url_file.name)
+        return
+    if disqualified and force:
+        print(f"  FORCE — language requirement ({reason}) bypassed")
 
     code = city_code(city)
     stem = build_stem(pub_date, code, title, company, source)

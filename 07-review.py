@@ -1,5 +1,5 @@
 import sys, shutil, re, time, threading, webbrowser, json
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from flask import Flask, jsonify, request
 from openpyxl import load_workbook
@@ -402,6 +402,136 @@ def api_save_scoring():
         return jsonify({'ok': False, 'error': f'Excel update failed: {e}'}), 500
 
     return jsonify({'ok': True, 'new_stem': new_stem, 'new_score': new_score})
+
+
+# ── Expiry check (30-day and LinkedIn) ───────────────────────────────────────
+
+_expiry_check: dict = {
+    'running': False, 'progress': 0, 'total': 0,
+    'expired': [], 'done': False, 'error': None,
+}
+_expiry_lock = threading.Lock()
+
+
+@app.route('/api/expire_old', methods=['POST'])
+def api_expire_old():
+    """Reject all active cards published more than 30 days ago with reason=Expired."""
+    cutoff = date.today() - timedelta(days=30)
+    today  = date.today().strftime('%d/%m/%Y')
+    expired = 0
+    for col in COLUMN_ORDER:
+        for listing in listings_in(col):
+            pub = listing.get('published', '')
+            if len(pub) == 8:
+                try:
+                    pub_date = date(int(pub[:4]), int(pub[4:6]), int(pub[6:8]))
+                    if pub_date < cutoff:
+                        stem = listing['stem']
+                        src  = col_path(col)
+                        dst  = col_path('rejects')
+                        dst.mkdir(exist_ok=True)
+                        for f in list(src.glob(f'{stem}.*')) + list(src.glob(f'{stem}_*')):
+                            shutil.move(str(f), str(dst / f.name))
+                        excel_update_row(stem[:4], {
+                            'status':        'rejected',
+                            'date_rejected': today,
+                            'reject_reason': 'Expired',
+                        })
+                        expired += 1
+                except ValueError:
+                    pass
+    return jsonify({'ok': True, 'expired': expired})
+
+
+def _linkedin_expiry_thread(cards: list) -> None:
+    """Background thread: open each card's URL in headless Chrome and detect expiry."""
+    try:
+        from playwright.sync_api import sync_playwright
+        profile_dir = str(BASE_DIR / '.chrome_profile')
+        with sync_playwright() as pw:
+            ctx = pw.chromium.launch_persistent_context(
+                profile_dir,
+                headless=True,
+                channel='chrome',
+                args=['--disable-blink-features=AutomationControlled'],
+            )
+            page = ctx.new_page()
+            for i, card in enumerate(cards):
+                try:
+                    page.goto(card['url'], timeout=15000, wait_until='domcontentloaded')
+                    if 'no longer accepting applications' in page.content().lower():
+                        with _expiry_lock:
+                            _expiry_check['expired'].append(
+                                {'stem': card['stem'], 'col': card['col']}
+                            )
+                except Exception as e:
+                    print(f'  LinkedIn check error ({card["stem"]}): {e}')
+                with _expiry_lock:
+                    _expiry_check['progress'] = i + 1
+            ctx.close()
+    except Exception as e:
+        with _expiry_lock:
+            _expiry_check['error'] = str(e)
+        print(f'  LinkedIn expiry check error: {e}')
+    finally:
+        with _expiry_lock:
+            _expiry_check['running'] = False
+            _expiry_check['done']    = True
+
+
+@app.route('/api/start_expiry_check', methods=['POST'])
+def api_start_expiry_check():
+    with _expiry_lock:
+        if _expiry_check['running']:
+            return jsonify({'ok': False, 'error': 'Check already in progress'}), 400
+
+    cards = []
+    for col in COLUMN_ORDER:
+        for listing in listings_in(col):
+            url_path = col_path(col) / f'{listing["stem"]}.url'
+            url = read_url(url_path)
+            if url:
+                cards.append({'stem': listing['stem'], 'col': col, 'url': url})
+
+    with _expiry_lock:
+        _expiry_check.update({
+            'running': True, 'progress': 0, 'total': len(cards),
+            'expired': [], 'done': False, 'error': None,
+        })
+
+    threading.Thread(target=_linkedin_expiry_thread, args=(cards,), daemon=True).start()
+    return jsonify({'ok': True, 'total': len(cards)})
+
+
+@app.route('/api/expiry_check_status', methods=['GET'])
+def api_expiry_check_status():
+    with _expiry_lock:
+        return jsonify(dict(_expiry_check))
+
+
+@app.route('/api/confirm_expire', methods=['POST'])
+def api_confirm_expire():
+    """Move a confirmed list of {stem, col} cards to rejects with reason=Expired."""
+    items = request.json.get('items', [])
+    today = date.today().strftime('%d/%m/%Y')
+    count = 0
+    for item in items:
+        stem = item.get('stem', '')
+        col  = item.get('col', '')
+        if not stem or col not in FOLDERS:
+            continue
+        src = col_path(col)
+        dst = col_path('rejects')
+        dst.mkdir(exist_ok=True)
+        for f in list(src.glob(f'{stem}.*')) + list(src.glob(f'{stem}_*')):
+            shutil.move(str(f), str(dst / f.name))
+        excel_update_row(stem[:4], {
+            'status':        'rejected',
+            'date_rejected': today,
+            'reject_reason': 'Expired',
+        })
+        count += 1
+    return jsonify({'ok': True, 'rejected': count})
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────

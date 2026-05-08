@@ -131,7 +131,12 @@ SCORING ARCHITECTURE (stage 06)
     - Apply additions (industry bonus: +10, applied ONCE regardless of matches)
     - Apply deductions (all forced negative by Python regardless of LLM sign)
     - Floor at 0, no ceiling (scores above 100 are valid)
-    - All listings are scored and saved regardless of score — no auto-rejection
+    - Auto-rejection thresholds (Python applies after scoring, before saving to CC):
+        Role disqualifier  : LLM flags "Role disqualifier:" → 07-rejects/ with Excel row
+                             (ref_nr assigned, status=rejected, reject_reason=Role)
+        Score < 30         : → 07-rejects/ with Excel row (same columns written)
+        Location disqualifier: LLM flags "Location disqualifier:" → 06-disqualified/
+                             (no ref_nr, no Excel row — never visible anywhere)
 
   LLM output fields (JSON) — no fit_score, Python owns that:
     city_code, date_published, job_title, company_name,
@@ -236,13 +241,15 @@ FOLDER / FILE STRUCTURE
   05-LLM_filter.py/.bat    Stage 05
   05-LLMfiltered/          Stage 05 output — renamed paired .url + .md files
   05-LLMfiltered/
-    lang_rejects/          Stage 05 language rejects (original filenames, untouched)
+    lang_rejects/          Stage 05 JD-language rejects (original filenames, untouched)
+    lang_req_rejects/      Stage 05 language-requirement rejects (original filenames)
     closed/                Listings with "no longer accepting applications" in the JD;
                            moved here by stage 05 (or stage 06 as a backstop), untouched
   06-score.py/.bat         Stage 06
   06-score_crit.txt        Scoring criteria — edit to tune scores, no code change needed
   06-listings_db.xlsx      Scored job database (all listings, cumulative)
   06-LLM_scored/           Stage 06 output — scored triplets (.md + .url + _SCORING.md)
+  06-disqualified/         Stage 06 location-excluded listings (no ref_nr, no Excel row)
   07-review.py             Stage 07 — Flask backend for the review console
   07-review.html           Stage 07 — single-page kanban app (served by Flask)
   07-review.bat            Stage 07 — launcher (starts Flask, opens browser)
@@ -335,7 +342,8 @@ STAGES
   Script : 05-LLM_filter.py / 05-LLM_filter.bat
   Input  : 04-enriched/  (.url + .md pairs)
   Output : 05-LLMfiltered/  (renamed .url + .md pairs)
-           05-LLMfiltered/lang_rejects/  (non-EN/PT/ES files, original names)
+           05-LLMfiltered/lang_rejects/      (non-EN/PT/ES JD language, original names)
+           05-LLMfiltered/lang_req_rejects/  (disqualifying language requirements)
   Model  : per _model_config.txt  (see OLLAMA CONNECTION above)
   What   : One Ollama call per file. Streams response live to console.
            Detects the language of the job description.
@@ -345,6 +353,15 @@ STAGES
            For accepted files: estimates publication date, extracts city/title/company,
            renames both files using the stage 05 naming convention, moves to
            05-LLMfiltered/. Retries up to 2x on empty/unparseable response.
+           Language requirement filter (runs after language detection):
+             LLM extracts required language proficiencies from the JD text.
+             Disqualifying requirements -> lang_req_rejects/ (never reach stage 06):
+               French or Dutch required at B2 or above (advanced/fluent/native)
+               Any other language (not EN/PT/ES/DE) required at B1 or above
+             Optional/preferred language requirements are ignored.
+             German at any level is never excluded here (stage 06 applies deductions).
+  --force: bypasses language detection filter, closed-listing check, and language
+           requirement filter.
   Notes  : Fully unattended. Requires Ollama on Legion with the configured model loaded.
            See CRITICAL STREAMING FLAGS above.
 
@@ -353,6 +370,8 @@ STAGES
   Input  : 05-LLMfiltered/  (.url + .md pairs)
   Output : 06-LLM_scored/   (.url + .md + _SCORING.md per listing)
            06-listings_db.xlsx  (one row appended per listing)
+           06-disqualified/     (location-excluded listings — no Excel row, never shown)
+           07-rejects/          (auto-rejected listings with score < 30)
   Criteria: 06-score_crit.txt  (edit freely — live reload on every run)
   Model  : per _model_config.txt  (see OLLAMA CONNECTION and SCORING ARCHITECTURE)
   What   : Fully unattended. One Ollama call per listing.
@@ -363,7 +382,17 @@ STAGES
            Closed listings (description contains "no longer accepting applications")
            are moved to 05-LLMfiltered/closed/ and skipped — backstop for items
            stage 05 didn't catch.
-  Output files per listing:
+           Location disqualifier: if the LLM flags a "Location disqualifier:" entry,
+           the listing is moved to 06-disqualified/ with no ref_nr and no Excel row.
+           Covers: any city not in the acceptable locations list, Rio de Janeiro state
+           outside 20km, and other Brazilian locations outside accepted areas.
+           Role disqualifier: if the LLM flags a "Role disqualifier:" entry (job title
+           matches no accepted tier in Criterion 1), the listing is assigned a ref_nr,
+           appended to Excel (status=rejected, reject_reason=Role), and moved to
+           07-rejects/. It never appears in the Command Center.
+           Score auto-rejection: if fit_score < 30, same behaviour as role disqualifier
+           — ref_nr assigned, Excel row written, moved to 07-rejects/.
+  Output files per listing (normal path):
            [ref_nr]_[score]_[date]_[city]_[title]_[company]_[source].md
            [ref_nr]_[score]_[date]_[city]_[title]_[company]_[source].url
            [ref_nr]_[score]_[date]_[city]_[title]_[company]_[source]_SCORING.md
@@ -418,6 +447,14 @@ STAGES
                      saved as [stem]_comment.md and synced to Excel column S
 
   Topbar buttons:
+    Check LinkedIn   Launches a headless Chrome session (using .chrome_profile/) and
+                     visits each active card's LinkedIn URL to detect "no longer
+                     accepting applications". Shows live progress (X/Y). When done,
+                     prompts to move all expired cards to 07-rejects/ with reason
+                     "Expired". Requires Chrome windows to be closed first.
+    30-day Expiry    Immediately rejects all active cards whose date_published is more
+                     than 30 days before today. Writes reason "Expired" to Excel.
+                     No confirmation — cards move to 07-rejects/, not deleted.
     Sync DB          One-shot batch: scans all 6 folders, updates Excel status +
                      stage dates + comments for every listing found. Shows count.
                      Also runs automatically at server startup as a safety net —

@@ -26,17 +26,30 @@ PREFERRED TITLES — no deduction:
   - Group CFO / Group Finance Director
   - Combinations of the above with Legal, HR, IT, or Operations components
     (e.g. CFOO, Head of Finance and Operations, Director of Finance and Legal)
+  Spanish equivalents (treat identically to the English titles above):
+  - Director Financiero / Director de Finanzas (= Finance Director)
+  - VP de Finanzas / VP Finanzas (= VP Finance)
+  - Director General Financiero / Director General de Finanzas
+  - Combinations of the above with Legal (Jurídico/Legal), HR (Recursos Humanos),
+    IT, or Operations (Operaciones)
+    (e.g. Director Financiero y de Operaciones, Director Financiero y Jurídico,
+    Director Financiero y de Recursos Humanos)
 
 ACCEPTABLE TITLES — no deduction:
   - Head of Finance
   - Any "Group" variant of an acceptable title not already listed above
+  Spanish equivalents (treat identically to the English titles above):
+  - Jefe de Finanzas (= Head of Finance)
+  - Any "Grupo" (Group) variant of an acceptable Spanish title
 
 DISCOUNTED TITLES — deduct 10 points each:
   - Chief of Staff (standalone, no finance component in the title)
   - Fractional CFO / Fractional Finance roles
 
-OUT OF SCOPE — deduct 50 points:
+OUT OF SCOPE — HARD DISQUALIFIER:
   - Any title that does not match any of the above tiers
+  Do NOT add a deduction entry for this. Add to the disqualifiers list:
+  "Role disqualifier: [job title] does not match any accepted role tier"
 
 
 # ============================================================
@@ -74,13 +87,15 @@ SCORING RULES:
   not Bragança Paulista within 40km): HARD DISQUALIFIER
     (note in output: "Location disqualifier: Brazilian location outside accepted areas")
 
-  Any other location not appearing in the priority list above: deduct 20 points
+  Any other location not appearing in the priority list above,
+  and not Berlin, and not Rio de Janeiro within 20km: HARD DISQUALIFIER
+    (note in output: "Location disqualifier: [city name] not in acceptable locations")
 
 # Note on HARD DISQUALIFIERS:
-# A hard disqualifier does not auto-reject the listing.
-# Score the listing normally, apply the disqualifier note to the output,
-# and let the fit_score reflect all other criteria. The disqualifier flag
-# is for the user's awareness only.
+# A location hard disqualifier causes the listing to be excluded from the pipeline
+# entirely. The script moves it to 06-disqualified/ and does not add it to the
+# command center or Excel database. Score the listing normally so the disqualifier
+# note is informative, but the listing will never be shown to the user.
 
 
 # ============================================================
@@ -164,26 +179,23 @@ SPANISH — NO deduction at any level, ever.
 # --- LANGUAGES WITH LEVEL-DEPENDENT DEDUCTIONS ---
 
 GERMAN:
-  - A1, A2, B1 (basic or intermediate): NO deduction
-  - B2 (upper intermediate): deduct 30 points
+  - A1, A2, B1 (basic or intermediary): NO deduction
+  - B2 (advanced): deduct 30 points
   - C1, C2, fluent, native, mother tongue, full professional proficiency, or equivalent: deduct 50 points
 
 DUTCH:
-  - A1, A2, B1 (basic or intermediate): NO deduction
-  - B2 (upper intermediate): deduct 30 points
-  - C1, C2, fluent, native, mother tongue, full professional proficiency, or equivalent: deduct 50 points
+  - A1, A2, B1 (basic or intermediary): NO deduction
+  - B2, C1, C2, fluent, native, or equivalent: excluded at Stage 05 — will not reach this stage
 
 FRENCH:
-  - A1, A2 (basic): NO deduction
-  - B1, B2 (intermediate or upper intermediate): deduct 30 points
-  - C1, C2, fluent, native, mother tongue, full professional proficiency, or equivalent: deduct 50 points
+  - A1, A2, B1 (basic or intermediary): NO deduction
+  - B2, C1, C2, fluent, native, or equivalent: excluded at Stage 05 — will not reach this stage
 
 # --- ALL OTHER LANGUAGES ---
 # Any language that is NOT English, Portuguese, Spanish, German, Dutch, or French:
 
   - A1, A2 (basic): deduct 15 points
-  - B1, B2 (intermediate or upper intermediate): deduct 30 points
-  - C1, C2, fluent, native, mother tongue, full professional proficiency, or equivalent: deduct 50 points
+  - B1 and above: excluded at Stage 05 — will not reach this stage
 
 
 # ============================================================

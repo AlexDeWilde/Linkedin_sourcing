@@ -32,11 +32,15 @@ from openpyxl import load_workbook
 sys.stdout.reconfigure(write_through=True)
 
 # ── Paths ───────────────────────────────────────────────────────────────────────
-BASE_DIR   = Path(__file__).parent
-INPUT_DIR  = BASE_DIR / "05-LLMfiltered"
-OUTPUT_DIR = BASE_DIR / "06-LLM_scored"
-CRITERIA   = BASE_DIR / "06-score_crit.txt"
-EXCEL_FILE = BASE_DIR / "06-listings_db.xlsx"
+BASE_DIR        = Path(__file__).parent
+INPUT_DIR       = BASE_DIR / "05-LLMfiltered"
+OUTPUT_DIR      = BASE_DIR / "06-LLM_scored"
+DISQUALIFIED    = BASE_DIR / "06-disqualified"
+REJECTS_DIR     = BASE_DIR / "07-rejects"
+CRITERIA        = BASE_DIR / "06-score_crit.txt"
+EXCEL_FILE      = BASE_DIR / "06-listings_db.xlsx"
+
+AUTO_REJECT_SCORE_THRESHOLD = 30  # scores below this are auto-rejected with reason "Role"
 
 # ── Ollama config ───────────────────────────────────────────────────────────────
 OLLAMA_URL  = "http://192.168.68.52:11434/api/chat"
@@ -393,6 +397,45 @@ def append_to_excel(result: dict, ref_nr: int, url: str) -> None:
     wb.close()
 
 
+def append_to_excel_rejected(result: dict, ref_nr: int, url: str) -> None:
+    """Append a row to Excel with status=rejected and reject_reason=Role."""
+    wb = load_workbook(EXCEL_FILE)
+    ws = wb.active
+
+    date_pub   = str(result.get("date_published", TODAY.strftime("%Y%m%d")))
+    ref_nr_str = f"{ref_nr:04d}"
+    score_str  = f"{result.get('fit_score', 0):03d}" if result.get('fit_score') is not None else None
+    today_str  = TODAY.strftime("%d/%m/%Y")
+
+    new_row_idx = ws.max_row + 1
+    ws.append([
+        ref_nr_str,
+        score_str,
+        format_date_dmy(date_pub),
+        result.get("city_code", ""),
+        result.get("client_company") or None,
+        result.get("job_title", ""),
+        result.get("company_name", ""),
+        result.get("source", "LinkedIn"),
+        today_str,
+        "rejected",
+        "No",
+        None,
+        url,
+    ])
+    ws.cell(new_row_idx, 1).number_format = '@'
+    ws.cell(new_row_idx, 2).number_format = '@'
+
+    # Write stage-07 columns: date_rejected and reject_reason
+    col_map = {str(cell.value).strip(): cell.column for cell in ws[1] if cell.value}
+    for col_name, value in {"date_rejected": today_str, "reject_reason": "Role"}.items():
+        if col_name in col_map:
+            ws.cell(new_row_idx, col_map[col_name]).value = value
+
+    wb.save(EXCEL_FILE)
+    wb.close()
+
+
 # ── Per-file processing ─────────────────────────────────────────────────────────
 
 def process_file(md_file: Path, criteria: str, idx: int, total: int, force: bool = False) -> None:
@@ -477,6 +520,19 @@ def process_file(md_file: Path, criteria: str, idx: int, total: int, force: bool
 
     result.setdefault("source", "LinkedIn")
 
+    # ── Location disqualifier check (before ref_nr assignment / Excel) ──────────
+    disqs = result.get("disqualifiers") or []
+    if any(str(d).lower().startswith("location disqualifier") for d in disqs) and not force:
+        print(f"  → DISQUALIFIED (location) — moving to 06-disqualified/")
+        for dq in disqs:
+            if str(dq).lower().startswith("location disqualifier"):
+                print(f"    {dq}")
+        DISQUALIFIED.mkdir(exist_ok=True)
+        shutil.move(str(md_file), DISQUALIFIED / md_file.name)
+        if url_file.exists():
+            shutil.move(str(url_file), DISQUALIFIED / url_file.name)
+        return
+
     # ── Build new filename stem ─────────────────────────────────────────────────
 
     if force:
@@ -501,7 +557,37 @@ def process_file(md_file: Path, criteria: str, idx: int, total: int, force: bool
 
     display_result(result, ref_nr, new_stem)
 
-    # ── Commit ──────────────────────────────────────────────────────────────────
+    # ── Role disqualifier check → 07-rejects/ ───────────────────────────────────
+    if any(str(d).lower().startswith("role disqualifier")
+           for d in (result.get("disqualifiers") or [])) and not force:
+        print(f"  → DISQUALIFIED (role) — moving to 07-rejects/")
+        append_to_excel_rejected(result, ref_nr, url)
+        REJECTS_DIR.mkdir(exist_ok=True)
+        new_md  = REJECTS_DIR / f"{new_stem}.md"
+        new_url = REJECTS_DIR / f"{new_stem}.url"
+        shutil.move(str(md_file), new_md)
+        if url_file.exists():
+            shutil.move(str(url_file), new_url)
+        write_scoring_file(REJECTS_DIR / f"{new_stem}_SCORING.md", result, ref_nr)
+        print(f"  Committed  : ref_nr {ref_nr:04d}  →  07-rejects/  (role)")
+        return
+
+    # ── Score < threshold: auto-reject with reason "Role" ───────────────────────
+    if score < AUTO_REJECT_SCORE_THRESHOLD and not force:
+        print(f"  → AUTO-REJECTED (score {score} < {AUTO_REJECT_SCORE_THRESHOLD}) — moving to 07-rejects/")
+        append_to_excel_rejected(result, ref_nr, url)
+
+        REJECTS_DIR.mkdir(exist_ok=True)
+        new_md  = REJECTS_DIR / f"{new_stem}.md"
+        new_url = REJECTS_DIR / f"{new_stem}.url"
+        shutil.move(str(md_file), new_md)
+        if url_file.exists():
+            shutil.move(str(url_file), new_url)
+        write_scoring_file(REJECTS_DIR / f"{new_stem}_SCORING.md", result, ref_nr)
+        print(f"  Committed  : ref_nr {ref_nr:04d}  score {score:03d}  →  07-rejects/")
+        return
+
+    # ── Commit (normal path) ─────────────────────────────────────────────────────
 
     if existing_ref is not None:
         update_excel_row_for_rescore(ref_nr, result)

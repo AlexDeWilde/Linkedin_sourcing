@@ -53,7 +53,7 @@ body {
   border-left: 3px solid transparent;
 }
 
-#btn-refresh, #btn-sync {
+#btn-refresh, #btn-sync, #btn-expire-old, #btn-check-linkedin {
   background: rgba(255,255,255,0.12);
   border: none;
   color: rgba(255,255,255,0.85);
@@ -65,8 +65,10 @@ body {
   white-space: nowrap;
   transition: background 0.2s;
 }
-#btn-refresh:hover, #btn-sync:hover { background: rgba(255,255,255,0.22); }
-#btn-sync.syncing { opacity: 0.6; cursor: default; }
+#btn-refresh:hover, #btn-sync:hover,
+#btn-expire-old:hover, #btn-check-linkedin:hover { background: rgba(255,255,255,0.22); }
+#btn-sync.syncing, #btn-check-linkedin:disabled,
+#btn-expire-old:disabled { opacity: 0.6; cursor: default; }
 
 /* ── BOARD ── */
 #board {
@@ -591,6 +593,8 @@ body {
 <div id="topbar">
   <div id="topbar-title">Job Finding Command Center</div>
   <div id="topbar-stats"></div>
+  <button id="btn-check-linkedin" onclick="startLinkedInCheck()" title="Close all Chrome windows before using">Check LinkedIn</button>
+  <button id="btn-expire-old" onclick="expireOld()">30-day Expiry</button>
   <button id="btn-sync" onclick="syncDb()">Sync DB</button>
   <button id="btn-refresh" onclick="loadAll()">Refresh</button>
 </div>
@@ -1161,6 +1165,98 @@ async function saveScoreEdit() {
 
   const listing = findListing(newStem);
   if (listing) selectCard(listing);
+}
+
+// ── 30-day Expiry ────────────────────────────────────────────────────────────
+
+async function expireOld() {
+  const btn = document.getElementById('btn-expire-old');
+  btn.textContent = 'Expiring…';
+  btn.disabled = true;
+  try {
+    const resp = await fetch('/api/expire_old', { method: 'POST' });
+    const data = await resp.json();
+    if (data.ok) {
+      btn.textContent = `✓ ${data.expired} expired`;
+      if (data.expired > 0) await loadAll();
+    } else {
+      btn.textContent = 'Error';
+    }
+  } catch (e) {
+    btn.textContent = 'Error';
+    console.error(e);
+  } finally {
+    btn.disabled = false;
+    setTimeout(() => { btn.textContent = '30-day Expiry'; }, 3000);
+  }
+}
+
+// ── LinkedIn Expiry Check ─────────────────────────────────────────────────────
+
+let _linkedinPollTimer = null;
+
+async function startLinkedInCheck() {
+  const btn = document.getElementById('btn-check-linkedin');
+  btn.disabled = true;
+  btn.textContent = 'Starting…';
+  try {
+    const resp = await fetch('/api/start_expiry_check', { method: 'POST' });
+    const data = await resp.json();
+    if (!data.ok) {
+      alert(data.error || 'Could not start check.');
+      btn.disabled = false;
+      btn.textContent = 'Check LinkedIn';
+      return;
+    }
+    _linkedinPollTimer = setInterval(pollLinkedInCheck, 2000);
+  } catch (e) {
+    console.error(e);
+    btn.disabled = false;
+    btn.textContent = 'Check LinkedIn';
+  }
+}
+
+async function pollLinkedInCheck() {
+  const btn = document.getElementById('btn-check-linkedin');
+  try {
+    const resp = await fetch('/api/expiry_check_status');
+    const data = await resp.json();
+    if (data.error) {
+      clearInterval(_linkedinPollTimer);
+      _linkedinPollTimer = null;
+      btn.disabled = false;
+      btn.textContent = 'Check LinkedIn';
+      alert('LinkedIn check error: ' + data.error);
+      return;
+    }
+    btn.textContent = `Checking ${data.progress}/${data.total}…`;
+    if (data.done) {
+      clearInterval(_linkedinPollTimer);
+      _linkedinPollTimer = null;
+      btn.disabled = false;
+      const n = (data.expired || []).length;
+      if (n === 0) {
+        btn.textContent = '✓ None expired';
+        setTimeout(() => { btn.textContent = 'Check LinkedIn'; }, 3000);
+      } else {
+        btn.textContent = 'Check LinkedIn';
+        const confirmed = confirm(`${n} expired listing(s) found. Move all to rejects?`);
+        if (confirmed) await confirmExpireBatch(data.expired);
+      }
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+async function confirmExpireBatch(items) {
+  const resp = await fetch('/api/confirm_expire', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ items }),
+  });
+  const data = await resp.json();
+  if (data.ok && data.rejected > 0) await loadAll();
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────

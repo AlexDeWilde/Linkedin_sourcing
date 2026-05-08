@@ -28,6 +28,9 @@ _debug_last_page.html
 __pycache__/
 *.pyc
 
+# Claude Code worktrees
+.claude/worktrees/
+
 # Editor / OS
 .vscode/
 .idea/
