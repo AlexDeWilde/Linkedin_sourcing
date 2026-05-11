@@ -1,6 +1,6 @@
 # LinkedIn Sourcing — User Guide
 
-User-facing operational manual. For pipeline internals (stages, Ollama flags, Excel schema, file naming), see `README.txt`.
+User-facing operational manual. For pipeline internals (stages, Ollama flags, Excel schema, file naming), see `README.md`.
 
 ---
 
@@ -18,7 +18,7 @@ User-facing operational manual. For pipeline internals (stages, Ollama flags, Ex
 
 3. **LinkedIn login** — first run of stage 01 (or `___RUN_ALL.bat`) will open Chrome. Log in once; the session is saved in `.chrome_profile/` and reused forever.
 
-4. **Ollama host** — the Legion machine (192.168.68.52) must be on with `gemma4:26b` loaded for stages 05 and 06. Connection details: see `README.txt` → `OLLAMA CONNECTION`.
+4. **Ollama host** — the Legion machine (192.168.68.52) must be on with `gemma4:26b` loaded for stages 05 and 06. Connection details: see `README.md` → `OLLAMA CONNECTION`.
 
 ---
 
@@ -58,7 +58,7 @@ If extraction fails for a given site, stage 04 saves `_debug_last_page.html` —
 
 All scoring rules live in `06-score_crit.txt`. It's plain natural-language text — edit any value and it takes effect on the **next run** of stage 06. No code changes needed.
 
-The LLM identifies which criteria apply; Python calculates the final score from that itemised breakdown. Full architecture: `README.txt` → `SCORING ARCHITECTURE`.
+The LLM identifies which criteria apply; Python calculates the final score from that itemised breakdown. Full architecture: `README.md` → `SCORING ARCHITECTURE`.
 
 **To re-score existing listings after changing criteria:** see "Rollback / reprocess" below.
 
@@ -135,7 +135,7 @@ Commit hashes come from `git log --oneline`. The first ~7 characters are enough.
 | Stage 01 opens Chrome but doesn't scroll | LinkedIn session expired → log in when prompted, press Enter in the console |
 | Stage 04 saves `_debug_last_page.html` | Page layout changed or non-LinkedIn site not recognized → open the HTML, check the structure, tell Claude |
 | Stage 05/06 hangs with no output | Legion not reachable, or `gemma4:26b` not loaded → check Ollama on Legion, re-pull model if needed |
-| Stage 05/06 streams empty content | `think: false` flag missing or `format: json` present — see `README.txt` → `CRITICAL STREAMING FLAGS` |
+| Stage 05/06 streams empty content | `think: false` flag missing or `format: json` present — see `README.md` → `CRITICAL STREAMING FLAGS` |
 | Excel file locked / open | Close it in Excel before running stage 06 or stage 07 actions |
 | Card shows wrong score | Edit Score in the side panel → edit raw JSON → Save. Filename and Excel update automatically |
 | Ref_nr jumped / gaps | Expected after rollback; ref_nr is assigned sequentially on first insert and doesn't reuse slots |
