@@ -70,6 +70,7 @@ PRIORITY ORDER (informational):
   9. Copenhagen, Denmark — within 40km
   10. Oslo, Norway — within 40km
   11. Local — within 40km of Tettnang, Baden-Württemberg, Germany
+  12. Zurich, Switzerland — within 40km of city centre
 
 SCORING RULES:
 

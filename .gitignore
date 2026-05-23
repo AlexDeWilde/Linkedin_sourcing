@@ -17,6 +17,9 @@
 10-in_process/
 11-applied/
 
+# Disqualified listings (personal job search data)
+06-disqualified/
+
 # Cumulative state (changes every run, binary / large)
 06-listings_db.xlsx
 02-dedup_seen.txt
