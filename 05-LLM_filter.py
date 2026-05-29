@@ -52,7 +52,7 @@ def _load_model(stage: int) -> tuple[str, int]:
             default_model = stages  # second field is the fallback model name
             default_ctx = ctx
             continue
-        if stages and any(s.strip() == str(stage) for s in stages.split(",")):
+        if stages and any(int(s) == stage for s in stages.split(",") if s.strip().isdigit()):
             return model, ctx
     if default_model:
         return default_model, default_ctx
