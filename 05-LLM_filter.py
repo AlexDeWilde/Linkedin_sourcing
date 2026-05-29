@@ -32,28 +32,33 @@ LANG_REQ_REJECT = OUTPUT_DIR / "lang_req_rejects"
 
 # ── Ollama config ──────────────────────────────────────────────────────────────
 OLLAMA_URL  = "http://192.168.68.52:11434/api/chat"
-NUM_CTX     = 49152
 MAX_TOKENS  = 8192
+DEFAULT_NUM_CTX = 32768
 
-def _load_model(stage: int) -> str:
+def _load_model(stage: int) -> tuple[str, int]:
+    """Return (model_name, num_ctx) for the given stage from _model_config.txt."""
     cfg = Path(__file__).parent / "_model_config.txt"
-    default = None
+    default_model = None
+    default_ctx = DEFAULT_NUM_CTX
     for raw in cfg.read_text(encoding="utf-8").splitlines():
         line = raw.split("#")[0].strip()
         if not line:
             continue
-        model, _, rhs = line.partition("-")
-        model, rhs = model.strip(), rhs.strip()
+        parts = [p.strip() for p in re.split(r'\s+-\s*', line, maxsplit=2)]
+        model = parts[0]
+        stages = parts[1] if len(parts) > 1 else ""
+        ctx = int(parts[2]) if len(parts) > 2 and parts[2] else DEFAULT_NUM_CTX
         if model == "default":
-            default = rhs  # rhs is the fallback model name
+            default_model = stages  # second field is the fallback model name
+            default_ctx = ctx
             continue
-        if rhs and any(s.strip() == str(stage) for s in rhs.split(",")):
-            return model
-    if default:
-        return default
+        if stages and any(s.strip() == str(stage) for s in stages.split(",")):
+            return model, ctx
+    if default_model:
+        return default_model, default_ctx
     raise RuntimeError(f"No model assigned to stage {stage} and no default in _model_config.txt")
 
-MODEL = _load_model(5)
+MODEL, NUM_CTX = _load_model(5)
 
 def _unload_all_models():
     base = OLLAMA_URL.replace("/api/chat", "")
@@ -155,7 +160,7 @@ Respond with ONLY the JSON object — no explanation, no markdown, no extra text
         print("  ", end="", flush=True)
         full_content = ""
 
-        resp = requests.post(OLLAMA_URL, json=payload, stream=True, timeout=300)
+        resp = requests.post(OLLAMA_URL, json=payload, stream=True, timeout=600)
         resp.raise_for_status()
 
         for line in resp.iter_lines():

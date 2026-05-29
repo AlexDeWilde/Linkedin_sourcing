@@ -68,16 +68,17 @@ OLLAMA CONNECTION  (stages 05 and 06)
   Port        : 11434
   API URL     : http://192.168.68.52:11434/api/chat
   Model       : configured per-stage in _model_config.txt (see below)
-  num_ctx     : 49152   (context window — fits prompt + full JD comfortably)
+  num_ctx     : configured per-model in _model_config.txt (default 32768)
   num_predict : 8192    (stage 05) / 2048 (stage 06 — JSON output is short)
 
   MODEL CONFIG  (_model_config.txt)
   ----------------------------------
-  Each stage reads its model name at startup from _model_config.txt.
-  Format:  model_name  -  stage_numbers (comma-separated)
-           default     -  fallback_model_name
+  Each stage reads its model name and num_ctx at startup from _model_config.txt.
+  Format:  model_name  -  stage_numbers (comma-separated)  -  num_ctx (optional)
+           default     -  fallback_model_name               -  num_ctx (optional)
   Empty stage field means that model is not used by any stage.
-  Edit the file directly to change models; no code changes needed.
+  If num_ctx is omitted, scripts use 32768.
+  Edit the file directly to change models or context windows; no code changes needed.
   If a stage has no explicit assignment and no default line, it aborts.
 
   CRITICAL STREAMING FLAGS (apply to both stages 05 and 06)

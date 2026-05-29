@@ -1,9 +1,10 @@
 # Ollama model assignments per pipeline stage.
-# Format:  model_name  -  stage numbers (comma-separated), or empty for none.
-# 'default' is the fallback when a stage has no explicit assignment.
-# Edit model names and stage lists as needed; add new model lines freely.
+# Format:  model_name  -  stage numbers (comma-separated)  -  num_ctx (optional)
+# 'default' line:  default  -  fallback_model_name  -  num_ctx (optional)
+# If num_ctx is omitted, scripts use 32768.
+# Edit model names, stage lists, and num_ctx as needed; add new model lines freely.
 
-default        - gemma4:26b
-gemma4:e4b     - 05
-gemma4:26b     - 06
+default        - gemma4:26b                        - 49152
+gemma4:e4b     - 05                                - 49152
+qwen3.6:27b   - 06                                - 32768
 deepseek-r1:8b -
