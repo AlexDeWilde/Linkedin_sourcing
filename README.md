@@ -361,6 +361,9 @@ STAGES
                Any other language (not EN/PT/ES/DE) required at B1 or above
              Optional/preferred language requirements are ignored.
              German at any level is never excluded here (stage 06 applies deductions).
+             The prompt asks for language names in English; the filter also
+             recognizes common localized forms (e.g. "espanhol", "alemão") so a
+             PT/ES-language JD cannot smuggle an exempt language past the check.
   --force: bypasses language detection filter, closed-listing check, and language
            requirement filter.
   Notes  : Fully unattended. Requires Ollama on Legion with the configured model loaded.
