@@ -9,11 +9,16 @@ To re-test: delete the .md and move the .url back to 03-quickfiltered/.
 
 import re
 import shutil
+import sys
 import unicodedata
 import html2text
 from datetime import date
 from pathlib import Path
 from playwright.sync_api import sync_playwright
+
+# encoding="utf-8" prevents UnicodeEncodeError on cp1252 consoles when scraped
+# titles/companies/URLs contain non-Latin1 characters (e.g. São, Ønskeskyen).
+sys.stdout.reconfigure(encoding="utf-8")
 
 INPUT_DIR      = Path(__file__).parent / "03-quickfiltered"
 OUTPUT_DIR     = Path(__file__).parent / "04-enriched"
