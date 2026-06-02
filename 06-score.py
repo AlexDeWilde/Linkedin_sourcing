@@ -28,8 +28,10 @@ from pathlib import Path
 import requests
 from openpyxl import load_workbook
 
-# Force unbuffered output so streaming tokens appear live in the console
-sys.stdout.reconfigure(write_through=True)
+# Force unbuffered output so streaming tokens appear live in the console.
+# encoding="utf-8" prevents UnicodeEncodeError when the console is cp1252 and
+# the model emits non-Latin1 characters (e.g. é, ã, → in streamed output).
+sys.stdout.reconfigure(write_through=True, encoding="utf-8")
 
 # ── Paths ───────────────────────────────────────────────────────────────────────
 BASE_DIR        = Path(__file__).parent

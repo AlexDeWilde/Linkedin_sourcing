@@ -22,7 +22,9 @@ from pathlib import Path
 
 import requests
 
-sys.stdout.reconfigure(write_through=True)
+# encoding="utf-8" prevents UnicodeEncodeError on cp1252 consoles when the
+# model emits non-Latin1 characters (e.g. é, ã in city names, → in output).
+sys.stdout.reconfigure(write_through=True, encoding="utf-8")
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 INPUT_DIR       = Path(__file__).parent / "04-enriched"
@@ -77,9 +79,13 @@ TODAY = date.today()
 # ── Language requirement filter ────────────────────────────────────────────────
 
 # Languages never excluded regardless of required level
+# Includes English/ISO names plus localized forms the model may emit when the
+# posting itself is in Portuguese, Spanish, French, etc.
 _LANG_EXEMPT = {
-    "english", "en", "portuguese", "pt", "spanish", "es",
-    "german", "de", "deutsch",
+    "english", "en", "inglês", "ingles", "inglés", "anglais", "englisch",
+    "portuguese", "pt", "português", "portugues", "portugués", "portugiesisch",
+    "spanish", "es", "espanhol", "español", "espanol", "espagnol", "spanisch",
+    "german", "de", "deutsch", "alemão", "alemao", "alemán", "aleman", "allemand",
 }
 
 # Levels that map to B2 or above (triggers exclusion for French and Dutch)
@@ -97,9 +103,11 @@ _B1_PLUS = _B2_PLUS | {
     "professional", "business",
 }
 
-# French and Dutch canonical name sets
-_FRENCH  = {"french", "fr", "français", "francais", "french language"}
-_DUTCH   = {"dutch", "nl", "flemish", "vlaams", "nederlands", "dutch language", "flemish dutch"}
+# French and Dutch canonical name sets (incl. localized forms)
+_FRENCH  = {"french", "fr", "français", "francais", "french language",
+            "francês", "frances", "francés", "französisch", "franzosisch"}
+_DUTCH   = {"dutch", "nl", "flemish", "vlaams", "nederlands", "dutch language", "flemish dutch",
+            "holandês", "holandes", "holandés", "neerlandais", "néerlandais", "niederländisch"}
 
 
 def lang_req_disqualifier(lang_reqs: list) -> tuple[bool, str]:
@@ -137,7 +145,7 @@ Analyze the job posting below and return ONLY a JSON object with exactly these f
 - "title": the job title.
 - "company": the company name.
 - "source": the job board hosting this posting, inferred from the URL and page content. Examples: "LinkedIn", "Personio", "Greenhouse", "Lever", "Workday", "Indeed", "company-website". Default to "LinkedIn" if unclear.
-- "language_requirements": list of language proficiencies that are HARD REQUIREMENTS in the job posting. Include ONLY languages explicitly required — not optional, preferred, "a plus", or "desirable". Each entry must have: {{"language": "<language name>", "level": "<CEFR level or descriptor such as B1, B2, C1, fluent, native, intermediate, advanced, basic>", "required": true}}. If no hard language requirements are stated, return an empty list [].
+- "language_requirements": list of language proficiencies that are HARD REQUIREMENTS in the job posting. Include ONLY languages explicitly required — not optional, preferred, "a plus", or "desirable". Each entry must have: {{"language": "<language name in English, e.g. English, Portuguese, Spanish, German, French, Dutch — NOT the localized name>", "level": "<CEFR level or descriptor such as B1, B2, C1, fluent, native, intermediate, advanced, basic>", "required": true}}. If no hard language requirements are stated, return an empty list [].
 
 Respond with ONLY the JSON object — no explanation, no markdown, no extra text.
 
