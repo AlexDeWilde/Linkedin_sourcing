@@ -8,7 +8,10 @@
 
 # Edit model names, stage lists, and num_ctx as needed; add new model lines freely.
 
-default        - gemma4:26b                        - 49152
-gemma4:e4b     - 05                                - 49152
+default        -gemma4:e4b-it-qat                         - 49152
+gemma4:e4b-it-qat     -                                 - 49152
 qwen3.6:27b   -                                 - 32768
 deepseek-r1:8b -
+gemma4-E4B-qat-unsloth:latest - 05                       - 24576
+gemma4-E4B-qat-unsloth:latest - 06                       - 16384
+gemma4:26b-a4b-it-qat - 

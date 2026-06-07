@@ -33,7 +33,7 @@ LANG_REJECT     = OUTPUT_DIR / "lang_rejects"
 LANG_REQ_REJECT = OUTPUT_DIR / "lang_req_rejects"
 
 # ── Ollama config ──────────────────────────────────────────────────────────────
-OLLAMA_URL  = "http://192.168.68.52:11434/api/chat"
+OLLAMA_URL  = "http://127.0.0.1:11434/api/chat"
 MAX_TOKENS  = 8192
 DEFAULT_NUM_CTX = 32768
 

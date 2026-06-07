@@ -45,7 +45,7 @@ EXCEL_FILE      = BASE_DIR / "06-listings_db.xlsx"
 AUTO_REJECT_SCORE_THRESHOLD = 30  # scores below this are auto-rejected with reason "Role"
 
 # ── Ollama config ───────────────────────────────────────────────────────────────
-OLLAMA_URL  = "http://192.168.68.52:11434/api/chat"
+OLLAMA_URL  = "http://127.0.0.1:11434/api/chat"
 MAX_TOKENS  = 2048
 DEFAULT_NUM_CTX = 32768
 
@@ -483,6 +483,10 @@ def process_file(md_file: Path, criteria: str, idx: int, total: int, force: bool
     additions  = result.get("additions")  or []
     deductions = result.get("deductions") or []
 
+    # Normalise: LLM sometimes returns plain strings instead of dicts
+    additions  = [a if isinstance(a, dict) else {"points": 0, "criterion": str(a), "detail": ""} for a in additions]
+    deductions = [d if isinstance(d, dict) else {"points": 0, "criterion": str(d), "detail": ""} for d in deductions]
+
     industry_bonus_applied = False
     additions_total = 0
     for a in additions:
@@ -627,7 +631,7 @@ def process_file(md_file: Path, criteria: str, idx: int, total: int, force: bool
 def main():
     force = "--force" in sys.argv
 
-    if _load_model(5) != MODEL:
+    if _load_model(5)[0] != MODEL:
         _unload_all_models()
 
     md_files = sorted(f for f in INPUT_DIR.glob("*.md")
