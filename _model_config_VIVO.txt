@@ -1,0 +1,17 @@
+# Ollama model assignments per pipeline stage.
+
+# Format:  model_name  -  stage numbers (comma-separated)  -  num_ctx (optional)
+
+# 'default' line:  default  -  fallback_model_name  -  num_ctx (optional)
+
+# If num_ctx is omitted, scripts use 32768.
+
+# Edit model names, stage lists, and num_ctx as needed; add new model lines freely.
+
+default        -gemma4-E4B-qat-unsloth:latest                   - 49152
+gemma4:e4b-it-qat     -                                 - 49152
+qwen3.6:27b   -                                 - 32768
+deepseek-r1:8b -
+gemma4-E4B-qat-unsloth:latest -                       - 24576
+gemma4-E4B-qat-unsloth:latest -                       - 16384
+gemma4:26b-a4b-it-qat - 

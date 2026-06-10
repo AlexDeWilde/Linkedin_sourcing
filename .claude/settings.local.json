@@ -56,7 +56,9 @@
       "Bash(ls \"D:/_Coding/LinkedIn_sourcing/06-LLM_scored/\"*.md)",
       "Bash(ls \"D:/_Coding/LinkedIn_sourcing/07-rejects/\"*.md)",
       "Bash(py -u 06-score.py)",
-      "PowerShell(git add 05-LLM_filter.py 06-score.py _model_config.txt __01_RUN_ALL.bat __01_RUN_ALL.bat.donotuse .claude/settings.local.json)"
+      "PowerShell(git add 05-LLM_filter.py 06-score.py _model_config.txt __01_RUN_ALL.bat __01_RUN_ALL.bat.donotuse .claude/settings.local.json)",
+      "Bash(python -c \"import socket; print\\(f'Hostname: {socket.gethostname\\(\\).upper\\(\\)}'\\); from pathlib import Path; host=socket.gethostname\\(\\).upper\\(\\); hcfg=Path\\(f'_model_config_{host}.txt'\\); cfg=hcfg if hcfg.exists\\(\\) else Path\\('_model_config.txt'\\); print\\(f'Config file: {cfg.name}'\\); print\\(cfg.read_text\\(encoding='utf-8'\\)[:200]\\)\")",
+      "PowerShell(try { $r = Invoke-RestMethod -Uri \"http://127.0.0.1:11434/api/tags\" -TimeoutSec 5; $r.models | ForEach-Object { \"$\\($_.name\\) - $\\([math]::Round\\($_.size/1GB, 1\\)\\)GB\" } } catch { \"OLLAMA_NOT_RUNNING: $\\($_.Exception.Message\\)\" })"
     ]
   }
 }

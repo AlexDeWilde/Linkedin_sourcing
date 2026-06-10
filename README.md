@@ -63,17 +63,19 @@ Install steps and first-time setup: see USER_GUIDE.md.
 
 OLLAMA CONNECTION  (stages 05 and 06)
 --------------------------------------
-  Host        : Legion (separate machine on local network)
-  IP          : 192.168.68.52
+  Host        : localhost (each machine runs its own Ollama)
   Port        : 11434
-  API URL     : http://192.168.68.52:11434/api/chat
-  Model       : configured per-stage in _model_config.txt (see below)
-  num_ctx     : configured per-model in _model_config.txt (default 32768)
+  API URL     : http://127.0.0.1:11434/api/chat
+  Model       : configured per-stage in _model_config_{HOSTNAME}.txt (see below)
+  num_ctx     : configured per-model in the same file (default 32768)
   num_predict : 8192    (stage 05) / 2048 (stage 06 — JSON output is short)
 
-  MODEL CONFIG  (_model_config.txt)
-  ----------------------------------
-  Each stage reads its model name and num_ctx at startup from _model_config.txt.
+  MODEL CONFIG  (_model_config_{HOSTNAME}.txt)
+  ----------------------------------------------
+  Scripts detect the machine hostname at startup and load the matching config:
+    _model_config_LEGION.txt  → used on LEGION
+    _model_config_VIVO.txt    → used on VIVO
+    _model_config.txt         → fallback if no hostname-specific file exists
   Format:  model_name  -  stage_numbers (comma-separated)  -  num_ctx (optional)
            default     -  fallback_model_name               -  num_ctx (optional)
   Empty stage field means that model is not used by any stage.
@@ -260,6 +262,9 @@ FOLDER / FILE STRUCTURE
   10-in_process/           Cards moved to "In Process"
   11-applied/              Cards moved to "Applied"
   .chrome_profile/         Persistent Chrome session (log in once, reused every run)
+  _model_config.txt        Fallback model config (used if no hostname-specific file)
+  _model_config_LEGION.txt Model config for LEGION (larger models, more VRAM)
+  _model_config_VIVO.txt   Model config for VIVO (smaller models, less VRAM)
   _debug_last_page.html    Stage 04 debug dump when description extraction fails
 
 

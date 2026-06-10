@@ -1,0 +1,11 @@
+# Ollama model assignments per pipeline stage — LEGION
+
+# Format:  model_name  -  stage numbers (comma-separated)  -  num_ctx (optional)
+
+# 'default' line:  default  -  fallback_model_name  -  num_ctx (optional)
+
+# If num_ctx is omitted, scripts use 32768.
+
+# Edit model names, stage lists, and num_ctx as needed; add new model lines freely.
+
+default        - hf.co/unsloth/gemma-4-26B-A4B-it-qat-GGUF:UD-Q4_K_XL  - 49152

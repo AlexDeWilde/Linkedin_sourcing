@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Stage 05 — LLM filter.
-Reads .md files from 04-enriched/, calls Ollama (model from _model_config.txt) to:
+Reads .md files from 04-enriched/, calls Ollama (model from _model_config_{HOSTNAME}.txt) to:
   - Detect language of the job description
   - Extract published date, city, title, company for renaming
 
@@ -15,6 +15,7 @@ Rename format: YYYYMMDD_CITY_Title_-_Company_-_Source.url/.md
 import json
 import re
 import shutil
+import socket
 import sys
 import unicodedata
 from datetime import date
@@ -39,7 +40,10 @@ DEFAULT_NUM_CTX = 32768
 
 def _load_model(stage: int) -> tuple[str, int]:
     """Return (model_name, num_ctx) for the given stage from _model_config.txt."""
-    cfg = Path(__file__).parent / "_model_config.txt"
+    host = socket.gethostname().upper()
+    host_cfg = Path(__file__).parent / f"_model_config_{host}.txt"
+    cfg = host_cfg if host_cfg.exists() else Path(__file__).parent / "_model_config.txt"
+    print(f"  Model config: {cfg.name} ({host})")
     default_model = None
     default_ctx = DEFAULT_NUM_CTX
     for raw in cfg.read_text(encoding="utf-8").splitlines():

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Stage 06 — LLM Scoring.
-Reads .md files from 05-LLMfiltered/, scores each via Ollama using criteria
+Reads .md files from 05-LLMfiltered/ (model from _model_config_{HOSTNAME}.txt), scores each via Ollama using criteria
 from 06-score_crit.txt, and runs fully unattended:
 
   - Streams scoring JSON live to console
@@ -20,6 +20,7 @@ Naming convention:
 import json
 import re
 import shutil
+import socket
 import sys
 import unicodedata
 from datetime import date
@@ -51,7 +52,10 @@ DEFAULT_NUM_CTX = 32768
 
 def _load_model(stage: int) -> tuple[str, int]:
     """Return (model_name, num_ctx) for the given stage from _model_config.txt."""
-    cfg = Path(__file__).parent / "_model_config.txt"
+    host = socket.gethostname().upper()
+    host_cfg = Path(__file__).parent / f"_model_config_{host}.txt"
+    cfg = host_cfg if host_cfg.exists() else Path(__file__).parent / "_model_config.txt"
+    print(f"  Model config: {cfg.name} ({host})")
     default_model = None
     default_ctx = DEFAULT_NUM_CTX
     for raw in cfg.read_text(encoding="utf-8").splitlines():
